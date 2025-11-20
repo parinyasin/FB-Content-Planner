@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Sliders, Type, AlignLeft, RefreshCw, ImageOff, Layers, Circle, Move, ZoomIn, Square, Maximize, Minimize, Laptop2, Scaling } from 'lucide-react';
+import { Sliders, Type, AlignLeft, RefreshCw, ImageOff, Layers, Circle, Move, ZoomIn, Square, Maximize, Minimize, Laptop2, Save } from 'lucide-react';
 import { AspectRatio } from '../types';
 
 interface LogoOverlayProps {
@@ -25,7 +25,6 @@ const fonts = [
 
 const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, aspectRatio, onSave }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const saveTimeoutRef = useRef<any>(null);
   
   const [loadedBaseImg, setLoadedBaseImg] = useState<HTMLImageElement | null>(null);
   const [loadedLogoImg, setLoadedLogoImg] = useState<HTMLImageElement | null>(null);
@@ -322,15 +321,8 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, aspectR
         drawLogoFn();
     }
 
-    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
-    saveTimeoutRef.current = setTimeout(() => {
-        try {
-            const dataUrl = canvas.toDataURL('image/png');
-            onSave(dataUrl);
-        } catch (e: any) {
-            console.warn("Canvas export skipped");
-        }
-    }, 300);
+    // REMOVED AUTO-SAVE LOGIC
+    // The image is now only saved when the user clicks the "Save" button.
 
   }, [
     loadedBaseImg, loadedLogoImg, aspectRatio,
@@ -338,9 +330,19 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, aspectR
     brightness, contrast, saturation, panX, panY, scale,
     isTextEnabled, textContent, selectedFont, customFontName, textColor, textStrokeColor, isTextStrokeEnabled, textSize, textYPosition, textXPosition,
     isSubtitleEnabled, subtitleContent, subtitleFont, customSubtitleFontName, subtitleColor, subtitleStrokeColor, isSubtitleStrokeEnabled, subtitleSize, subtitleX, subtitleY,
-    layerOrder,
-    onSave
+    layerOrder
   ]);
+
+  const handleManualSave = () => {
+      if (canvasRef.current) {
+          try {
+              const dataUrl = canvasRef.current.toDataURL('image/png');
+              onSave(dataUrl);
+          } catch (e) {
+              console.error("Failed to save canvas", e);
+          }
+      }
+  };
 
   if (imgError) {
       return (
@@ -374,8 +376,16 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, aspectR
       </div>
       
       {/* Controls Sidebar */}
-      <div className="w-full md:w-80 flex flex-col gap-3 h-full overflow-y-auto pr-1">
+      <div className="w-full md:w-80 flex flex-col gap-3 h-full overflow-y-auto pr-1 pb-10">
         
+        {/* Save Button - MOVED HERE FOR VISIBILITY */}
+        <button 
+            onClick={handleManualSave}
+            className="w-full py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-bold shadow-md flex items-center justify-center gap-2 mb-2 transition-colors"
+        >
+            <Save className="w-5 h-5" /> บันทึกภาพ & ลงแผนงาน
+        </button>
+
         {/* Layer Settings */}
         <div className="p-3 bg-white rounded-lg border border-slate-200 shadow-sm flex items-center justify-between">
             <h3 className="font-bold text-slate-700 text-sm flex items-center gap-2">
