@@ -2,15 +2,6 @@
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
 import { ContentTone, ImageStyle } from "../types";
 
-// Safely retrieve API Key
-const getApiKey = (): string => {
-  try {
-    return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY || "" : "";
-  } catch {
-    return "";
-  }
-};
-
 /**
  * Summarizes content and writes a Facebook Caption
  */
@@ -19,10 +10,8 @@ export const generateFBCaption = async (
   tone: ContentTone
 ): Promise<{ caption: string; imagePrompt: string }> => {
   
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key Not Found. Please check your settings.");
-
-  const ai = new GoogleGenAI({ apiKey });
+  // Initialize with process.env.API_KEY directly to ensure bundler replacement works
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   const prompt = `
     คุณคือผู้เชี่ยวชาญด้านการตลาดบน Facebook (Content Creator) ระดับมืออาชีพ
@@ -43,7 +32,7 @@ export const generateFBCaption = async (
        [สรุป / Call to Action]
        \n\n
        [Hashtags]
-    4. ห้ามใช้ Markdown ตัวหนา (**) หรือตัวเอียง
+    4. ห้ามใช้ Markdown ตัวหนา (**) หรือตัวเอียง เพราะ Facebook ไม่รองรับ
     5. ห้ามใช้ Emoji เยอะเกินไป ให้เน้นความสะอาดตา
     6. ห้ามใช้เครื่องหมาย : (Colon) ในเนื้อหา ให้เว้นวรรคแทน
 
@@ -92,12 +81,9 @@ export const generateFBCaption = async (
     
     const result = JSON.parse(jsonText);
 
-    // Post-Processing to ensure line breaks are real
+    // Post-Processing to ensure line breaks are real and clean colons
     if (result.caption) {
-        // Ensure we don't have colons
         result.caption = result.caption.replace(/:/g, " ");
-        // Double check newlines (optional, but good for safety)
-        // result.caption = result.caption.replace(/\\n/g, '\n'); 
     }
     
     return result;
@@ -131,10 +117,7 @@ function getStyleModifiers(style: ImageStyle): string {
  * Generates an image using Imagen model
  */
 export const generateIllustration = async (prompt: string, style: ImageStyle): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key Not Found");
-  
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const styleModifiers = getStyleModifiers(style);
@@ -168,9 +151,7 @@ export const generateImageVariation = async (
     prompt: string, 
     style: ImageStyle
 ): Promise<string> => {
-  const apiKey = getApiKey();
-  if (!apiKey) throw new Error("API Key Not Found");
-  const ai = new GoogleGenAI({ apiKey });
+  const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
   try {
     const styleModifiers = getStyleModifiers(style);
