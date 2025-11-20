@@ -23,6 +23,7 @@ export default function ContentCreator() {
     setGeneratedImage('');
 
     try {
+      // เรียกใช้ Service
       const captionResult = await generateFBCaption(inputText, tone);
       
       if (captionResult.caption) {
