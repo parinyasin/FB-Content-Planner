@@ -6,11 +6,11 @@ import { GoogleGenAI, Type } from "@google/genai";
 const apiKey = (typeof process !== "undefined" && process.env) ? process.env.API_KEY : "";
 const ai = new GoogleGenAI({ apiKey });
 
-// 1. Generate Caption ONLY from Text
-export const generateCaptionFromText = async (text: string, tone: string) => {
+// 1. Generate Caption AND Image Prompt from Text
+export const generateFBCaption = async (text: string, tone: string) => {
   if (!apiKey) {
     console.error("API Key is missing. Please ensure process.env.API_KEY is set.");
-    return { caption: "ไม่พบ API Key กรุณาตรวจสอบการตั้งค่าระบบ" };
+    return { caption: "ไม่พบ API Key กรุณาตรวจสอบการตั้งค่าระบบ", imagePrompt: null };
   }
 
   try {
@@ -21,20 +21,22 @@ export const generateCaptionFromText = async (text: string, tone: string) => {
       Tone: "${tone}"
       Input Text: "${text}"
 
-      Task: Summarize the Input Text into a Thai Facebook Status.
+      Task 1: Summarize the Input Text into a Thai Facebook Status.
+      - LANGUAGE: THAI ONLY for the status.
+      - FORMAT: Use paragraphs. No bullet points with symbols. Line breaks only.
+      - STYLE: Engaging, professional.
+      - HASHTAGS: Generate 5-10 trending SEO hashtags. MANDATORY: The LAST hashtag MUST be #การะเกต์พยากรณ์.
 
-      STRICT RULES:
-      1. LANGUAGE: THAI ONLY.
-      2. CONTENT: Summarize the main points clearly. Make it easy to read on mobile.
-      3. FORMAT: Use paragraphs. Do NOT use bullet points with symbols. Use line breaks only.
-      4. FORBIDDEN: NO Emojis allowed in the body text.
-      5. FORBIDDEN: NO Colons (:) allowed in headers. Write complete sentences.
-      6. STYLE: Engaging, professional, and suitable for the selected tone.
-      
-      HASHTAG RULES (CRITICAL):
-      1. Generate 5-10 highly relevant, trending SEO hashtags related to the content topic to boost reach.
-      2. MANDATORY: The VERY LAST hashtag MUST be #การะเกต์พยากรณ์ (Do not forget this specific tag).
-      3. Place hashtags at the very end, separated from the text by a double line break.
+      Task 2: Create a creative Image Prompt (in English) based on the content.
+      - The prompt will be used by an AI image generator.
+      - Describe a scene, objects, or abstract concept that matches the content's mood.
+      - Keep it visual and descriptive.
+
+      Output JSON format:
+      {
+        "caption": "Thai content...",
+        "imagePrompt": "English image description..."
+      }
     `;
 
     const response = await ai.models.generateContent({
@@ -45,9 +47,10 @@ export const generateCaptionFromText = async (text: string, tone: string) => {
         responseSchema: {
           type: Type.OBJECT,
           properties: {
-            caption: { type: Type.STRING, description: "Thai caption, summarized with SEO hashtags and #การะเกต์พยากรณ์ at the end" },
+            caption: { type: Type.STRING, description: "Thai caption with hashtags" },
+            imagePrompt: { type: Type.STRING, description: "English image generation prompt" }
           },
-          required: ["caption"],
+          required: ["caption", "imagePrompt"],
         },
       },
     });
@@ -69,17 +72,51 @@ export const generateCaptionFromText = async (text: string, tone: string) => {
     } catch (e) {
       console.error("JSON Parse Error:", e);
       // Fallback: try to use raw text if it looks like a caption
-      result = { caption: responseText };
+      result = { caption: responseText, imagePrompt: null };
     }
 
     return {
       caption: result.caption || "ไม่สามารถสร้างคำบรรยายได้",
+      imagePrompt: result.imagePrompt || null
     };
 
   } catch (error: any) {
     console.error("Gemini API Error (Caption):", error);
     return {
         caption: `ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อ AI (${error.message || "Unknown Error"})`,
+        imagePrompt: null
     };
+  }
+};
+
+// 2. Generate Illustration
+export const generateIllustration = async (prompt: string, style: string) => {
+  if (!apiKey) return null;
+  
+  try {
+    // Combine user prompt with style
+    const fullPrompt = `${prompt}. Art Style: ${style}. High quality, detailed, aesthetic, visually appealing.`;
+
+    const response = await ai.models.generateContent({
+      model: 'gemini-2.5-flash-image',
+      contents: { parts: [{ text: fullPrompt }] },
+      // Note: responseMimeType is not supported for image generation models
+    });
+
+    // Iterate through parts to find the image
+    const parts = response.candidates?.[0]?.content?.parts;
+    if (parts) {
+      for (const part of parts) {
+        if (part.inlineData && part.inlineData.data) {
+           return `data:${part.inlineData.mimeType};base64,${part.inlineData.data}`;
+        }
+      }
+    }
+    
+    return null;
+
+  } catch (error) {
+    console.error("Gemini API Error (Image):", error);
+    return null;
   }
 };
