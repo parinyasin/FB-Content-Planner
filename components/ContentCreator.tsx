@@ -23,7 +23,7 @@ export default function ContentCreator() {
     setGeneratedImage('');
 
     try {
-      // เรียกใช้ Service
+      // เรียก Service โดยไม่ต้องส่ง Key (เพราะฝังไว้ใน Service แล้ว)
       const captionResult = await generateFBCaption(inputText, tone);
       
       if (captionResult.caption) {
@@ -47,7 +47,7 @@ export default function ContentCreator() {
   return (
     <div className="max-w-6xl mx-auto p-6 grid grid-cols-1 lg:grid-cols-2 gap-8">
       
-      {/* ฝั่งซ้าย: Input */}
+      {/* ฝั่งซ้าย: กรอกข้อมูล */}
       <div className="space-y-6">
         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100">
           <div className="flex items-center gap-2 mb-4 text-slate-800">
@@ -111,7 +111,7 @@ export default function ContentCreator() {
         </div>
       </div>
 
-      {/* ฝั่งขวา: Output */}
+      {/* ฝั่งขวา: ผลลัพธ์ */}
       <div className="space-y-6">
          <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-full flex flex-col">
             <div className="flex items-center justify-between mb-4">
