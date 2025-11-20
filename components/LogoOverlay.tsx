@@ -65,7 +65,10 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   useEffect(() => {
     if (!baseImage) return;
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    // Avoid crossOrigin for data: URIs to prevent tainting or loading issues
+    if (!baseImage.startsWith('data:')) {
+      img.crossOrigin = "anonymous";
+    }
     img.src = baseImage;
     img.onload = () => setLoadedBaseImg(img);
     img.onerror = () => console.error("Failed to load base image");
@@ -78,7 +81,9 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
       return;
     }
     const img = new Image();
-    img.crossOrigin = "anonymous";
+    if (!logoImage.startsWith('data:')) {
+      img.crossOrigin = "anonymous";
+    }
     img.src = logoImage;
     img.onload = () => setLoadedLogoImg(img);
     img.onerror = () => console.error("Failed to load logo image");
@@ -95,6 +100,9 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
     // Set Dimensions
     canvas.width = loadedBaseImg.width;
     canvas.height = loadedBaseImg.height;
+
+    // Clear canvas
+    ctx.clearRect(0, 0, canvas.width, canvas.height);
 
     // --- Helper Functions ---
     const drawBase = () => {
@@ -173,6 +181,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         ctx.closePath();
+        // Clip to circle
         ctx.clip();
 
         const imgRatio = loadedLogoImg.width / loadedLogoImg.height;
@@ -186,6 +195,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
             renderH = diameter / imgRatio;
         }
         
+        // Center image in the clipped circle
         ctx.drawImage(loadedLogoImg, centerX - (renderW / 2), centerY - (renderH / 2), renderW, renderH);
         ctx.restore(); 
     };
