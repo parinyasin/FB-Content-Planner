@@ -18,6 +18,7 @@ const fonts = [
 
 const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
+  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
   
   // Preloaded Images State
   const [loadedBaseImg, setLoadedBaseImg] = useState<HTMLImageElement | null>(null);
@@ -202,9 +203,21 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         drawLogo();
     }
 
-    // Export
-    const dataUrl = canvas.toDataURL('image/png');
-    onSave(dataUrl);
+    // Export with debounce
+    if (saveTimeoutRef.current) {
+        clearTimeout(saveTimeoutRef.current);
+    }
+
+    saveTimeoutRef.current = setTimeout(() => {
+        const dataUrl = canvas.toDataURL('image/png');
+        onSave(dataUrl);
+    }, 300); // Debounce for 300ms
+
+    return () => {
+        if (saveTimeoutRef.current) {
+            clearTimeout(saveTimeoutRef.current);
+        }
+    };
 
   }, [
     loadedBaseImg, loadedLogoImg,

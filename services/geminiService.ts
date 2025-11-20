@@ -78,9 +78,9 @@ export const generateFBCaption = async (
 function getStyleModifiers(style: ImageStyle): string {
     switch (style) {
         case ImageStyle.CLEAN_LINE:
-            return "style of minimal continuous line art, single line drawing, full frame illustration, no borders, solid pastel color background, edge to edge, black ink, vector illustration, elegant, sophisticated, fine art, no shading, flat design, full coverage";
+            return "style of continuous line art, colorful pastel background, full frame illustration, edge to edge, no white background, sophisticated, fine art, flat design, full coverage, filling the entire canvas";
         case ImageStyle.ABSTRACT_MINIMAL:
-            return "abstract minimal art, soft organic shapes, pastel colors, modern art composition, non-representational, bauhaus influence, clean aesthetic, high quality design, no realistic details, full canvas coverage, no borders, colorful background";
+            return "abstract minimal art, soft organic shapes, rich colors, modern art composition, non-representational, bauhaus influence, clean aesthetic, high quality design, full canvas coverage, no borders, colorful background, filling the whole image";
         case ImageStyle.GEOMETRIC_FLAT:
             return "flat vector art, geometric shapes, vibrant but balanced colors, modern graphic design, adobe illustrator style, clean edges, no gradients, symbolism, full frame colorful background, edge to edge, no white borders";
         case ImageStyle.SOFT_WATERCOLOR:
@@ -100,7 +100,7 @@ export const generateIllustration = async (prompt: string, style: ImageStyle): P
     const styleModifiers = getStyleModifiers(style);
 
     // Combine to force the aesthetic and STRICTLY ban white backgrounds in negative prompt
-    const enhancedPrompt = `A conceptual art piece representing: ${prompt}. ${styleModifiers}. Professional artistic composition, masterpiece, 4k resolution, full frame, edge to edge image. Negative prompt: realistic photo, 3d render, plastic, blurry, messy, text, watermark, human faces, white background, empty background, border, frame, isolated on white, white space, split view, grid, cropped.`;
+    const enhancedPrompt = `A conceptual art piece representing: ${prompt}. ${styleModifiers}. Professional artistic composition, masterpiece, 4k resolution, full frame, edge to edge image, filling the entire canvas. Negative prompt: realistic photo, 3d render, plastic, blurry, messy, text, watermark, human faces, white background, empty background, border, frame, isolated on white, white space, split view, grid, cropped, margin, padding.`;
 
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
@@ -151,7 +151,7 @@ export const generateImageVariation = async (
                   },
                 },
                 {
-                  text: `Redraw this image entirely. Keep the main subject and composition but change the artistic style to: ${styleModifiers}. The concept is: ${prompt}. High quality, artistic, clear visualization, full frame, no white background, no borders, edge to edge.`,
+                  text: `Redraw this image entirely. Keep the main subject and composition but change the artistic style to: ${styleModifiers}. The concept is: ${prompt}. High quality, artistic, clear visualization, full frame, no white background, no borders, edge to edge, filling the canvas.`,
                 },
               ],
             },
