@@ -19,6 +19,10 @@ const fonts = [
 const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
   
+  // Preloaded Images State
+  const [loadedBaseImg, setLoadedBaseImg] = useState<HTMLImageElement | null>(null);
+  const [loadedLogoImg, setLoadedLogoImg] = useState<HTMLImageElement | null>(null);
+
   // Logo State
   const [logoSize, setLogoSize] = useState<number>(20); // Percentage of width
   const [logoX, setLogoX] = useState<number>(85); // Percentage X (0-100)
@@ -36,7 +40,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   const [customFont, setCustomFont] = useState(''); // For System Fonts
   const [textColor, setTextColor] = useState('#ffffff');
   const [textStrokeColor, setTextStrokeColor] = useState('#000000');
-  const [isTextStrokeEnabled, setIsTextStrokeEnabled] = useState(true); // New: Toggle Stroke
+  const [isTextStrokeEnabled, setIsTextStrokeEnabled] = useState(true);
   const [textSize, setTextSize] = useState(10); // Percentage
   const [textXPosition, setTextXPosition] = useState(50);
   const [textYPosition, setTextYPosition] = useState(50);
@@ -48,7 +52,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   const [subtitleCustomFont, setSubtitleCustomFont] = useState('');
   const [subtitleColor, setSubtitleColor] = useState('#ffffff');
   const [subtitleStrokeColor, setSubtitleStrokeColor] = useState('#000000');
-  const [isSubtitleStrokeEnabled, setIsSubtitleStrokeEnabled] = useState(true); // New: Toggle Stroke
+  const [isSubtitleStrokeEnabled, setIsSubtitleStrokeEnabled] = useState(true);
   const [subtitleSize, setSubtitleSize] = useState(5); // Percentage
   const [subtitleX, setSubtitleX] = useState(50);
   const [subtitleY, setSubtitleY] = useState(65);
@@ -56,30 +60,50 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   // Layering
   const [layerPriority, setLayerPriority] = useState<'logo' | 'text'>('logo');
 
-  const drawCanvas = () => {
-    const canvas = canvasRef.current;
-    if (!canvas) return;
-    const ctx = canvas.getContext('2d');
-    if (!ctx) return;
-
+  // 1. Preload Base Image
+  useEffect(() => {
+    if (!baseImage) return;
     const img = new Image();
     img.crossOrigin = "anonymous";
     img.src = baseImage;
+    img.onload = () => setLoadedBaseImg(img);
+    img.onerror = () => console.error("Failed to load base image");
+  }, [baseImage]);
 
-    img.onload = () => {
-      canvas.width = img.width;
-      canvas.height = img.height;
+  // 2. Preload Logo Image
+  useEffect(() => {
+    if (!logoImage) {
+      setLoadedLogoImg(null);
+      return;
+    }
+    const img = new Image();
+    img.crossOrigin = "anonymous";
+    img.src = logoImage;
+    img.onload = () => setLoadedLogoImg(img);
+    img.onerror = () => console.error("Failed to load logo image");
+  }, [logoImage]);
 
-      // 1. Draw Base Image
-      const drawBase = () => {
+  // 3. Draw Canvas Logic
+  useEffect(() => {
+    const canvas = canvasRef.current;
+    if (!canvas || !loadedBaseImg) return;
+    
+    const ctx = canvas.getContext('2d');
+    if (!ctx) return;
+
+    // Set Dimensions
+    canvas.width = loadedBaseImg.width;
+    canvas.height = loadedBaseImg.height;
+
+    // --- Helper Functions ---
+    const drawBase = () => {
         ctx.save(); 
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
-        ctx.drawImage(img, 0, 0);
+        ctx.drawImage(loadedBaseImg, 0, 0);
         ctx.restore(); 
-      };
+    };
 
-      // Helper to draw text block
-      const drawTextBlock = (
+    const drawTextBlock = (
         text: string, 
         fontName: string, 
         customFontName: string,
@@ -89,7 +113,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         hasStroke: boolean,
         xPercent: number, 
         yPercent: number
-      ) => {
+    ) => {
         if (!text) return;
         ctx.save();
         
@@ -111,13 +135,13 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         lines.forEach((line, index) => {
             const lineY = startY + (index * lineHeight);
             
-            // Shadow/Glow for better readability
+            // Shadow/Glow
             ctx.shadowColor = "rgba(0,0,0,0.5)";
             ctx.shadowBlur = 4;
             ctx.shadowOffsetX = 2;
             ctx.shadowOffsetY = 2;
 
-            // Stroke (Only if enabled and not transparent)
+            // Stroke
             if (hasStroke && strokeColor !== 'transparent') {
                 ctx.lineWidth = fontSizePx / 8;
                 ctx.strokeStyle = strokeColor;
@@ -130,117 +154,66 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
             ctx.fillText(line, x, lineY);
         });
         ctx.restore();
-      };
-
-      // 2. Draw Main Text
-      const drawMain = () => {
-        if (isTextEnabled) {
-            drawTextBlock(
-                textContent, 
-                selectedFont, 
-                customFont, 
-                textSize, 
-                textColor, 
-                textStrokeColor, 
-                isTextStrokeEnabled,
-                textXPosition, 
-                textYPosition
-            );
-        }
-      };
-
-      // 3. Draw Subtitle
-      const drawSubtitle = () => {
-        if (isSubtitleEnabled) {
-            drawTextBlock(
-                subtitleContent, 
-                subtitleFont, 
-                subtitleCustomFont, 
-                subtitleSize, 
-                subtitleColor, 
-                subtitleStrokeColor, 
-                isSubtitleStrokeEnabled,
-                subtitleX, 
-                subtitleY
-            );
-        }
-      };
-
-      // 4. Draw Logo (Circle)
-      const drawLogo = (loadedLogoImg: HTMLImageElement) => {
-          const diameter = (canvas.width * logoSize) / 100;
-          const radius = diameter / 2;
-          const centerX = (canvas.width * logoX) / 100;
-          const centerY = (canvas.height * logoY) / 100;
-
-          ctx.save();
-          // Shadow for logo
-          ctx.shadowColor = "rgba(0,0,0,0.3)";
-          ctx.shadowBlur = 10;
-          ctx.shadowOffsetX = 0;
-          ctx.shadowOffsetY = 4;
-
-          ctx.beginPath();
-          ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
-          ctx.closePath();
-          ctx.clip();
-
-          const imgRatio = loadedLogoImg.width / loadedLogoImg.height;
-          let renderW, renderH;
-
-          // Object-fit: Cover logic for circle
-          // To ensure the image covers the circle completely, the smaller dimension must match the diameter
-          if (imgRatio >= 1) {
-             // Landscape or Square
-             renderH = diameter;
-             renderW = diameter * imgRatio;
-          } else {
-             // Portrait
-             renderW = diameter;
-             renderH = diameter / imgRatio;
-          }
-          
-          // Draw centered in the circle
-          ctx.drawImage(loadedLogoImg, centerX - (renderW / 2), centerY - (renderH / 2), renderW, renderH);
-          ctx.restore(); 
-      };
-
-      // Execution
-      if (logoImage) {
-        const logo = new Image();
-        logo.crossOrigin = "anonymous";
-        logo.src = logoImage;
-        logo.onload = () => {
-          drawBase();
-          
-          if (layerPriority === 'text') {
-             drawLogo(logo);
-             drawMain();
-             drawSubtitle();
-          } else {
-             drawMain();
-             drawSubtitle();
-             drawLogo(logo);
-          }
-          onSave(canvas.toDataURL('image/png'));
-        };
-      } else {
-         drawBase();
-         drawMain();
-         drawSubtitle();
-         onSave(canvas.toDataURL('image/png'));
-      }
     };
-  };
 
-  useEffect(() => {
-    drawCanvas();
+    const drawLogo = () => {
+        if (!loadedLogoImg) return;
+        const diameter = (canvas.width * logoSize) / 100;
+        const radius = diameter / 2;
+        const centerX = (canvas.width * logoX) / 100;
+        const centerY = (canvas.height * logoY) / 100;
+
+        ctx.save();
+        ctx.shadowColor = "rgba(0,0,0,0.3)";
+        ctx.shadowBlur = 10;
+        ctx.shadowOffsetX = 0;
+        ctx.shadowOffsetY = 4;
+
+        ctx.beginPath();
+        ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        const imgRatio = loadedLogoImg.width / loadedLogoImg.height;
+        let renderW, renderH;
+
+        if (imgRatio >= 1) {
+            renderH = diameter;
+            renderW = diameter * imgRatio;
+        } else {
+            renderW = diameter;
+            renderH = diameter / imgRatio;
+        }
+        
+        ctx.drawImage(loadedLogoImg, centerX - (renderW / 2), centerY - (renderH / 2), renderW, renderH);
+        ctx.restore(); 
+    };
+
+    // --- Execution Order ---
+    drawBase();
+
+    if (layerPriority === 'text') {
+        drawLogo();
+        if (isTextEnabled) drawTextBlock(textContent, selectedFont, customFont, textSize, textColor, textStrokeColor, isTextStrokeEnabled, textXPosition, textYPosition);
+        if (isSubtitleEnabled) drawTextBlock(subtitleContent, subtitleFont, subtitleCustomFont, subtitleSize, subtitleColor, subtitleStrokeColor, isSubtitleStrokeEnabled, subtitleX, subtitleY);
+    } else {
+        if (isTextEnabled) drawTextBlock(textContent, selectedFont, customFont, textSize, textColor, textStrokeColor, isTextStrokeEnabled, textXPosition, textYPosition);
+        if (isSubtitleEnabled) drawTextBlock(subtitleContent, subtitleFont, subtitleCustomFont, subtitleSize, subtitleColor, subtitleStrokeColor, isSubtitleStrokeEnabled, subtitleX, subtitleY);
+        drawLogo();
+    }
+
+    // Export
+    const dataUrl = canvas.toDataURL('image/png');
+    onSave(dataUrl);
+
   }, [
-    baseImage, logoImage, logoSize, logoX, logoY, 
+    loadedBaseImg, loadedLogoImg,
+    logoSize, logoX, logoY, 
     brightness, contrast, saturation, 
     isTextEnabled, textContent, selectedFont, customFont, textColor, textStrokeColor, isTextStrokeEnabled, textSize, textYPosition, textXPosition,
     isSubtitleEnabled, subtitleContent, subtitleFont, subtitleCustomFont, subtitleColor, subtitleStrokeColor, isSubtitleStrokeEnabled, subtitleSize, subtitleX, subtitleY,
-    layerPriority
+    layerPriority,
+    onSave
   ]);
 
   return (
@@ -273,7 +246,6 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         className="w-full p-2 text-sm border border-slate-300 rounded-md"
                     />
                     
-                    {/* Font Selection */}
                     <div className="space-y-2">
                         <label className="text-xs font-medium text-slate-500 block">ฟอนต์</label>
                         <select 
@@ -363,7 +335,6 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         className="w-full p-2 text-sm border border-slate-300 rounded-md"
                     />
                     
-                    {/* Font Selection */}
                     <div className="space-y-2">
                          <label className="text-xs font-medium text-slate-500 block">ฟอนต์</label>
                          <div className="flex items-center gap-2">
@@ -432,7 +403,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
 
         {/* Logo & Layers & Filters */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-            {logoImage && (
+            {loadedLogoImg && (
                 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm space-y-4 border-l-4 border-l-green-500">
                     <h3 className="font-semibold text-slate-700 flex items-center gap-2">
                         <RefreshCw className="w-4 h-4 text-green-600" /> โลโก้ (วงกลม)
@@ -450,7 +421,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
             )}
 
             <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm space-y-4">
-                 {logoImage && (
+                 {loadedLogoImg && (
                     <div className="pb-3 border-b border-slate-100">
                         <h3 className="font-semibold text-slate-700 flex items-center gap-2 mb-2">
                             <Layers className="w-4 h-4" /> ลำดับชั้น (Layer)

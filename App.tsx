@@ -20,18 +20,33 @@ const App: React.FC = () => {
   });
 
   const [userLogo, setUserLogo] = useState<string | null>(() => {
-    return localStorage.getItem('fb_planner_logo') || null;
+    try {
+        return localStorage.getItem('fb_planner_logo') || null;
+    } catch (e) {
+        console.error("Failed to load logo", e);
+        return null;
+    }
   });
 
   // Save to localStorage whenever posts change
   useEffect(() => {
-    localStorage.setItem('fb_planner_posts', JSON.stringify(posts));
+    try {
+        localStorage.setItem('fb_planner_posts', JSON.stringify(posts));
+    } catch (e) {
+        console.error("Failed to save posts (Storage limit likely reached)", e);
+        // Optional: Alert user
+    }
   }, [posts]);
 
   // Save to localStorage whenever logo changes
   useEffect(() => {
     if (userLogo) {
-      localStorage.setItem('fb_planner_logo', userLogo);
+      try {
+        localStorage.setItem('fb_planner_logo', userLogo);
+      } catch (e) {
+        console.error("Failed to save logo (Storage limit likely reached)", e);
+        // If logo is too big, it won't save, but app won't crash
+      }
     }
   }, [userLogo]);
 
