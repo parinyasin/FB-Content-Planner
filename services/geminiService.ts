@@ -1,8 +1,10 @@
+
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize the Google GenAI client
-// Ensure your API key is set in the environment variables (process.env.API_KEY)
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+// Safely access process.env to prevent crashes in pure browser environments
+const apiKey = (typeof process !== "undefined" && process.env) ? process.env.API_KEY : "";
+const ai = new GoogleGenAI({ apiKey });
 
 export const generateFBCaption = async (text: string, tone: string) => {
   try {
@@ -29,6 +31,7 @@ export const generateFBCaption = async (text: string, tone: string) => {
         1. Language: English.
         2. Style: High-end commercial photography, 8k resolution, cinematic lighting.
         3. Description: A visual representation of the content's theme.
+        4. Length: Keep it concise (under 40 words) to ensure image generation stability.
       `,
       config: {
         responseMimeType: "application/json",
@@ -56,9 +59,12 @@ export const generateFBCaption = async (text: string, tone: string) => {
         result = JSON.parse(responseText);
     } catch (e) {
         console.warn("JSON Parse Error, attempting cleanup", e);
-        // Fallback cleanup if AI adds markdown code blocks despite config
         const cleanText = responseText.replace(/```json|```/g, "").trim();
-        result = JSON.parse(cleanText);
+        try {
+            result = JSON.parse(cleanText);
+        } catch (finalErr) {
+            throw new Error("Failed to parse AI response");
+        }
     }
 
     return {
@@ -71,7 +77,6 @@ export const generateFBCaption = async (text: string, tone: string) => {
     
     let errorMessage = "เกิดข้อผิดพลาดในการเชื่อมต่อ AI";
     
-    // Handle specific HTTP errors often seen in web deployments
     if (error.message?.includes("404") || error.toString().includes("not found")) {
         errorMessage = "ไม่พบโมเดล AI (404) - กรุณาตรวจสอบการตั้งค่า API Key หรือ Model Version";
     } else if (error.message?.includes("API_KEY")) {
@@ -87,9 +92,10 @@ export const generateFBCaption = async (text: string, tone: string) => {
 
 export const generateIllustration = async (prompt: string, style: string) => {
   // Enhance prompt for better aesthetics and reliability
-  // Adding a random seed to URL ensures browser doesn't cache failed attempts
   const seed = Math.floor(Math.random() * 1000000);
-  const enhancedPrompt = encodeURIComponent(`${prompt}, ${style}, professional photography, soft studio lighting, 8k resolution, highly detailed, masterpiece, trending on artstation`);
+  // Trim prompt to safe length for URL
+  const safePrompt = prompt.substring(0, 200); 
+  const enhancedPrompt = encodeURIComponent(`${safePrompt}, ${style}, professional photography, soft studio lighting, 8k resolution, highly detailed`);
   
   // Using Pollinations with Flux model
   // flux is generally more consistent for text-to-image

@@ -60,24 +60,50 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
 
   const [layerPriority, setLayerPriority] = useState<'logo' | 'text'>('logo');
 
-  // 1. Preload Base Image
+  // 1. Preload Base Image with Robust Fetch Logic
   useEffect(() => {
     if (!baseImage) return;
     let isMounted = true;
-    const img = new Image();
-    
-    // Crucial: Only set crossOrigin if it's a remote URL, NOT data: URI
-    if (!baseImage.startsWith('data:')) {
-      img.crossOrigin = "anonymous";
-    }
 
-    img.onload = () => {
-        if (isMounted) setLoadedBaseImg(img);
+    const loadBaseImage = async () => {
+        try {
+            let imageSrc = baseImage;
+            
+            // If it's a remote URL (not data URI), try fetching as blob first
+            // This bypasses some strict CORS issues on simple <img> tags and ensures the data is actually there
+            if (baseImage.startsWith('http')) {
+                try {
+                    const response = await fetch(baseImage);
+                    const blob = await response.blob();
+                    imageSrc = URL.createObjectURL(blob);
+                } catch (fetchErr) {
+                    console.warn("Failed to fetch image blob, falling back to direct URL", fetchErr);
+                }
+            }
+
+            const img = new Image();
+            // Setting crossOrigin is crucial for allowing canvas export (toDataURL)
+            if (!baseImage.startsWith('data:')) {
+                img.crossOrigin = "anonymous";
+            }
+
+            img.onload = () => {
+                if (isMounted) setLoadedBaseImg(img);
+            };
+            
+            img.onerror = (e) => {
+                console.error("Failed to load base image", e);
+                // Fallback or Alert could go here
+            };
+
+            img.src = imageSrc;
+
+        } catch (err) {
+            console.error("Error in image loading routine", err);
+        }
     };
-    img.onerror = () => {
-        console.error("Failed to load base image");
-    };
-    img.src = baseImage;
+
+    loadBaseImage();
     
     return () => { isMounted = false; };
   }, [baseImage]);
@@ -132,7 +158,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         sizePercent: number, 
         color: string, 
         strokeColor: string, 
-        hasStroke: boolean,
+        hasStroke: boolean, 
         xPercent: number, 
         yPercent: number
     ) => {
