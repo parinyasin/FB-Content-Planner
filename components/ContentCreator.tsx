@@ -98,3 +98,54 @@ export default function ContentCreator() {
             <button
               onClick={handleGenerate}
               disabled={isLoading}
+              className="w-full py-3 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-medium shadow-sm flex items-center justify-center gap-2 disabled:opacity-70"
+            >
+              {isLoading ? (
+                <> <Loader2 className="w-5 h-5 animate-spin" /> กำลังสร้าง... </>
+              ) : (
+                <> <Sparkles className="w-5 h-5" /> สร้างคอนเทนต์ด้วย AI </>
+              )}
+            </button>
+          </div>
+        </div>
+      </div>
+
+      {/* ฝั่งขวา: Output */}
+      <div className="space-y-6">
+         <div className="bg-white p-6 rounded-xl shadow-sm border border-slate-100 h-full flex flex-col">
+            <div className="flex items-center justify-between mb-4">
+               <h3 className="font-bold text-slate-800 flex items-center gap-2">
+                 <Type className="w-5 h-5 text-purple-500" />
+                 ผลลัพธ์ (Caption)
+               </h3>
+               {result && (
+                 <button 
+                   onClick={() => {navigator.clipboard.writeText(result); toast.success('คัดลอกแล้ว')}}
+                   className="text-slate-400 hover:text-blue-600"
+                 >
+                   <Copy className="w-5 h-5" />
+                 </button>
+               )}
+            </div>
+            
+            <div className="flex-grow bg-slate-50 rounded-lg p-4 text-slate-700 whitespace-pre-line min-h-[200px]">
+              {result || <span className="text-slate-400 italic">รอผลลัพธ์...</span>}
+            </div>
+
+            {generatedImage && (
+              <div className="mt-6 pt-6 border-t border-slate-100">
+                 <h3 className="font-bold text-slate-800 flex items-center gap-2 mb-4">
+                    <ImageIcon className="w-5 h-5 text-pink-500" />
+                    ภาพประกอบ
+                 </h3>
+                 <div className="rounded-lg overflow-hidden shadow-sm border border-slate-200">
+                    <img src={generatedImage} alt="AI" className="w-full h-auto" />
+                 </div>
+              </div>
+            )}
+         </div>
+      </div>
+
+    </div>
+  );
+}
