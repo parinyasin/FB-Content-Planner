@@ -3,8 +3,8 @@ export interface PostData {
   id: string;
   originalContent: string;
   generatedCaption: string;
-  generatedImageBase64: string | null; // Raw AI image
-  finalImageBase64: string | null; // Image with Logo
+  uploadedImageBase64?: string | null;
+  finalImageBase64: string | null; // Image with Logo & Text
   status: 'draft' | 'scheduled' | 'published';
   scheduledDate: string;
   timestamp: number;
@@ -12,7 +12,6 @@ export interface PostData {
 
 export interface GenerateContentResult {
   caption: string;
-  imagePrompt: string;
 }
 
 export enum ContentTone {
@@ -22,10 +21,11 @@ export enum ContentTone {
   EDUCATIONAL = "ให้ความรู้และสาระ"
 }
 
-export enum ImageStyle {
-  CLEAN_LINE = "ลายเส้นสะอาดตา (Clean Line Art)",
-  ABSTRACT_MINIMAL = "นามธรรมมินิมอล (Abstract Minimal)",
-  GEOMETRIC_FLAT = "กราฟิกรูปทรงเรขาคณิต (Geometric Flat)",
-  SOFT_WATERCOLOR = "สีน้ำละมุน (Soft Watercolor)",
-  POP_ART = "ป๊อปอาร์ต สีสดใส (Vibrant Pop Art)"
+// Removed ImageStyle enum as AI image generation is disabled
+
+export enum AspectRatio {
+  SQUARE = "1:1 (จัตุรัส 1080x1080)",
+  PORTRAIT = "4:5 (แนวตั้ง 1080x1350)",
+  PORTRAIT_LONG = "2:3 (แนวตั้งยาว 1080x1500)", 
+  LANDSCAPE = "16:9 (แนวนอน 1280x720)"
 }
