@@ -2,7 +2,7 @@
 import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
 import { ContentTone, ImageStyle } from "../types";
 
-// Safely retrieve API Key to prevent "process is not defined" errors in browser environments
+// Safely retrieve API Key
 const getApiKey = (): string => {
   try {
     return (typeof process !== 'undefined' && process.env) ? process.env.API_KEY || "" : "";
@@ -10,9 +10,6 @@ const getApiKey = (): string => {
     return "";
   }
 };
-
-// Initialize Gemini API Client
-const ai = new GoogleGenAI({ apiKey: getApiKey() });
 
 /**
  * Summarizes content and writes a Facebook Caption
@@ -22,34 +19,43 @@ export const generateFBCaption = async (
   tone: ContentTone
 ): Promise<{ caption: string; imagePrompt: string }> => {
   
-  const prompt = `
-    คุณคือผู้เชี่ยวชาญด้านการตลาดบน Facebook (Content Creator) ระดับมืออาชีพ.
-    หน้าที่ของคุณคือ:
-    1. อ่านข้อความต้นฉบับที่ให้มา
-    2. สรุปใจความสำคัญและเขียนโพสต์ Facebook (Caption) ที่น่าสนใจ ดึงดูดสายตา
-    3. ใช้น้ำเสียงแบบ: ${tone}
-    4. **การจัดรูปแบบ (สำคัญมากที่สุด)**:
-       - **ต้องเว้นบรรทัด (Line Break) ระหว่างย่อหน้าเสมอ** ห้ามเขียนติดกันเป็นพืด
-       - โครงสร้างโพสต์ต้องเป็นดังนี้:
-         [พาดหัวที่ดึงดูดความสนใจ]
-         (เว้นบรรทัด)
-         [เนื้อหาย่อหน้าแรก]
-         (เว้นบรรทัด)
-         [เนื้อหาย่อหน้าถัดไป ถ้ามี]
-         (เว้นบรรทัด)
-         [สรุป หรือ Call to Action]
-         (เว้นบรรทัด)
-         [Hashtags]
-       - เขียนย่อหน้าสั้นๆ ย่อหน้าละไม่เกิน 2-3 บรรทัด เพื่อให้อ่านง่ายบนมือถือ
-    5. **ห้ามใช้ Emoji หรือไอคอนกราฟิกใดๆ ในเนื้อหาโดยเด็ดขาด (เช่น ❌, ✅, 🔥 ฯลฯ ห้ามมี)** ขอเป็นตัวอักษรล้วน
-    6. **ห้ามใช้เครื่องหมาย : (colon/ทวิภาค) ในเนื้อหาโดยเด็ดขาด** หากต้องการขยายความให้ใช้การเว้นวรรคหรือขึ้นบรรทัดใหม่แทน
-    7. **ห้ามใช้เครื่องหมาย ** (ดอกจัน) เพื่อทำตัวหนา หรือ Markdown syntax ใดๆ ให้ใช้ตัวอักษรธรรมดาเท่านั้น**
-    8. คิด Hashtag ที่เกี่ยวข้อง 5-10 อัน โดยเน้นคำที่คนค้นหาเยอะ (SEO Friendly) ช่วยให้ติดอันดับการค้นหาได้ง่าย
-    9. **ต้องใส่ Hashtag บังคับนี้เสมอในทุกโพสต์**: #การะเกต์พยากรณ์
-    10. สร้าง Prompt ภาษาอังกฤษสำหรับเจนภาพประกอบ เน้นแนวคิดที่เป็น Abstract หรือ Symbolic แทนการใช้รูปคนจริง เพื่อความสวยงามทางศิลปะ
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key Not Found. Please check your settings.");
 
-    ข้อความต้นฉบับ:
-    "${text}"
+  const ai = new GoogleGenAI({ apiKey });
+
+  const prompt = `
+    คุณคือผู้เชี่ยวชาญด้านการตลาดบน Facebook (Content Creator) ระดับมืออาชีพ
+    หน้าที่: เขียนแคปชั่น Facebook จากข้อมูลที่ได้รับ ให้น่าสนใจและดึงดูด
+    
+    โทนเสียง: ${tone}
+
+    **กฏสำคัญสำหรับการจัดรูปแบบ (Formatting Rules):**
+    1. **ต้องเว้นบรรทัด (Double Line Break) ระหว่างย่อหน้าเสมอ** โดยใช้ \n\n เท่านั้น
+    2. ห้ามเขียนเนื้อหาติดกันเป็นพืด
+    3. โครงสร้างโพสต์:
+       [พาดหัวให้น่าสนใจ]
+       \n\n
+       [เนื้อหา ย่อหน้า 1 - สั้นๆ กระชับ]
+       \n\n
+       [เนื้อหา ย่อหน้า 2 - ถ้ามี]
+       \n\n
+       [สรุป / Call to Action]
+       \n\n
+       [Hashtags]
+    4. ห้ามใช้ Markdown ตัวหนา (**) หรือตัวเอียง
+    5. ห้ามใช้ Emoji เยอะเกินไป ให้เน้นความสะอาดตา
+    6. ห้ามใช้เครื่องหมาย : (Colon) ในเนื้อหา ให้เว้นวรรคแทน
+
+    สิ่งที่คุณต้องทำ:
+    1. สร้าง Caption ภาษาไทย
+    2. สร้าง Prompt ภาษาอังกฤษสำหรับสร้างภาพประกอบ (Image Generation Prompt) ที่:
+       - เป็นภาพแนว Abstract, Minimalist หรือ Symbolic ที่สวยงาม
+       - สื่อถึงหัวข้อหลักของคอนเทนต์
+       - **ไม่เอาภาพคนจริง** (No photorealistic humans) ให้เน้นกราฟิกหรืองานศิลปะ เพื่อความสวยงามและไม่ติดลิขสิทธิ์หน้าคน
+       - เน้นองค์ประกอบที่ "Full Frame" (เต็มกรอบ)
+
+    ข้อมูลต้นฉบับ: "${text}"
   `;
 
   const schema: Schema = {
@@ -57,11 +63,11 @@ export const generateFBCaption = async (
     properties: {
       caption: {
         type: Type.STRING,
-        description: "เนื้อหา Caption สำหรับโพสต์ลง Facebook ที่มีการเว้นบรรทัดระหว่างย่อหน้าอย่างชัดเจน (ใช้ \\n\\n)",
+        description: "Facebook Caption with clear double line breaks (\\n\\n) between every paragraph.",
       },
       imagePrompt: {
         type: Type.STRING,
-        description: "Prompt ภาษาอังกฤษสำหรับสร้างภาพประกอบ เน้นวัตถุหรือสัญลักษณ์ (Subject) ที่สื่อความหมาย ไม่เน้นคน",
+        description: "English prompt for image generation, focusing on aesthetic composition, object, or scenery. No human faces.",
       },
     },
     required: ["caption", "imagePrompt"],
@@ -78,14 +84,20 @@ export const generateFBCaption = async (
       },
     });
 
-    const jsonText = response.text;
+    let jsonText = response.text;
     if (!jsonText) throw new Error("No response from AI");
+    
+    // Clean up any Potential Markdown Code Blocks if Gemini adds them
+    jsonText = jsonText.replace(/```json\n?|```/g, "").trim();
     
     const result = JSON.parse(jsonText);
 
-    // Strict Post-Processing: Remove colons if they exist
+    // Post-Processing to ensure line breaks are real
     if (result.caption) {
+        // Ensure we don't have colons
         result.caption = result.caption.replace(/:/g, " ");
+        // Double check newlines (optional, but good for safety)
+        // result.caption = result.caption.replace(/\\n/g, '\n'); 
     }
     
     return result;
@@ -96,34 +108,37 @@ export const generateFBCaption = async (
 };
 
 function getStyleModifiers(style: ImageStyle): string {
-    const common = "high resolution, 8k, sharp focus, professional photography lighting, highly detailed, cinematic composition, masterpiece, vibrant colors";
-    const noBorders = "full frame, edge to edge, no borders, no margins, no white background, filling the entire canvas";
+    const common = "masterpiece, best quality, 8k, ultra-detailed, professional lighting, award-winning composition";
+    const noBorders = "full frame, edge to edge, no borders, no white background, filling the entire canvas, no letterbox";
 
     switch (style) {
         case ImageStyle.CLEAN_LINE:
-            return `style of sophisticated continuous line art, pastel color palette, full frame illustration. ${common}, ${noBorders}`;
+            return `continuous line art style, sophisticated minimalism, pastel palette, elegant curves. ${common}, ${noBorders}`;
         case ImageStyle.ABSTRACT_MINIMAL:
-            return `high-end abstract minimal art, organic fluid shapes, rich textured colors, modern art composition, bauhaus influence. ${common}, ${noBorders}`;
+            return `abstract minimal art, bauhaus style, geometric shapes, balanced composition, rich textures. ${common}, ${noBorders}`;
         case ImageStyle.GEOMETRIC_FLAT:
-            return `premium flat vector art, geometric patterns, vibrant balanced colors, modern graphic design, adobe illustrator style. ${common}, ${noBorders}`;
+            return `modern flat vector illustration, vibrant colors, clean shapes, adobe illustrator style, isometric view. ${common}, ${noBorders}`;
         case ImageStyle.SOFT_WATERCOLOR:
-            return `masterpiece watercolor painting, wet on wet technique, full page painting, rich detailed colored background, dreamy atmosphere. ${common}, ${noBorders}`;
+            return `soft watercolor painting, wet-on-wet technique, dreamy atmosphere, artistic bleed, paper texture. ${common}, ${noBorders}`;
         case ImageStyle.POP_ART:
-            return `modern pop art style, vibrant high-saturation colors, bold graphic composition, flat vector illustration, no gradients. ${common}, ${noBorders}`;
+            return `modern pop art, bold colors, sharp contrast, halftone patterns, roy lichtenstein style. ${common}, ${noBorders}`;
         default:
-            return `minimalist, artistic, full frame detailed background. ${common}, ${noBorders}`;
+            return `artistic illustration, cinematic lighting. ${common}, ${noBorders}`;
     }
 }
 
 /**
- * Generates an image using Imagen model (Text-to-Image)
+ * Generates an image using Imagen model
  */
 export const generateIllustration = async (prompt: string, style: ImageStyle): Promise<string> => {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key Not Found");
+  
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const styleModifiers = getStyleModifiers(style);
-
-    // Enhanced prompt to strictly enforce full frame and remove white backgrounds
-    const enhancedPrompt = `A conceptual masterpiece art piece representing: ${prompt}. ${styleModifiers}. Negative prompt: white background, simple background, plain background, borders, frames, white edges, margin, padding, watermark, text, signature, blurry, low quality, distorted, ugly, split view, letterbox, vignette.`;
+    const enhancedPrompt = `Artistic representation of: ${prompt}. ${styleModifiers}. NO text, NO watermark, NO borders, NO white margins. The image must fill the whole frame.`;
 
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
@@ -136,10 +151,7 @@ export const generateIllustration = async (prompt: string, style: ImageStyle): P
     });
 
     const base64Image = response.generatedImages?.[0]?.image?.imageBytes;
-    
-    if (!base64Image) {
-      throw new Error("Failed to generate image bytes");
-    }
+    if (!base64Image) throw new Error("Failed to generate image bytes");
 
     return `data:image/png;base64,${base64Image}`;
   } catch (error) {
@@ -149,57 +161,36 @@ export const generateIllustration = async (prompt: string, style: ImageStyle): P
 };
 
 /**
- * Generates an image variation based on an input image (Image-to-Image)
+ * Generates an image variation
  */
 export const generateImageVariation = async (
     base64InputImage: string, 
     prompt: string, 
     style: ImageStyle
 ): Promise<string> => {
+  const apiKey = getApiKey();
+  if (!apiKey) throw new Error("API Key Not Found");
+  const ai = new GoogleGenAI({ apiKey });
+
   try {
     const styleModifiers = getStyleModifiers(style);
-    
-    // Clean data prefix if present
     const cleanBase64 = base64InputImage.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
     const response = await ai.models.generateContent({
         model: 'gemini-2.5-flash-image',
         contents: {
           parts: [
-            {
-              inlineData: {
-                data: cleanBase64,
-                mimeType: 'image/png', 
-              },
-            },
-            {
-              text: `Redraw this image entirely. Keep the main subject and composition but change the artistic style to: ${styleModifiers}. The concept is: ${prompt}. High quality, artistic, clear visualization, full frame, edge to edge, filling the canvas, no white background, no borders.`,
-            },
+            { inlineData: { data: cleanBase64, mimeType: 'image/png' } },
+            { text: `Redraw this image in a new style: ${styleModifiers}. Concept: ${prompt}. Make it full frame, no borders.` },
           ],
         },
-        config: {
-            responseModalities: [Modality.IMAGE],
-        },
+        config: { responseModalities: [Modality.IMAGE] },
     });
 
-    let newImageBase64 = "";
-    const candidates = response.candidates;
-    if (candidates && candidates.length > 0) {
-        const parts = candidates[0].content.parts;
-        for (const part of parts) {
-            if (part.inlineData && part.inlineData.data) {
-                newImageBase64 = part.inlineData.data;
-                break;
-            }
-        }
-    }
-
-    if (!newImageBase64) {
-        throw new Error("Failed to generate image variation");
-    }
+    const newImageBase64 = response.candidates?.[0]?.content?.parts?.[0]?.inlineData?.data;
+    if (!newImageBase64) throw new Error("Failed to generate image variation");
 
     return `data:image/png;base64,${newImageBase64}`;
-
   } catch (error) {
     console.error("Error generating image variation:", error);
     throw error;

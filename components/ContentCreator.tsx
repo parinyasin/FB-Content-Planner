@@ -17,7 +17,7 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
   // Inputs
   const [inputText, setInputText] = useState('');
   const [selectedTone, setSelectedTone] = useState<ContentTone>(ContentTone.PROFESSIONAL);
-  const [selectedStyle, setSelectedStyle] = useState<ImageStyle>(ImageStyle.CLEAN_LINE); // Default to Clean Line Art
+  const [selectedStyle, setSelectedStyle] = useState<ImageStyle>(ImageStyle.CLEAN_LINE); 
   
   // Processing States
   const [isGeneratingText, setIsGeneratingText] = useState(false);
@@ -69,8 +69,6 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
       reader.onload = (evt) => {
         if (evt.target?.result) {
           setGeneratedImageBase64(evt.target.result as string);
-          // Reset prompt if user uploads their own image, or keep it as context?
-          // We keep the prompt in case they want to use "Restyle" later.
         }
       };
       reader.readAsDataURL(file);
@@ -125,7 +123,6 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
       setIsGeneratingImage(true);
       setError(null);
       try {
-          // Use current prompt or fallback
           const promptToUse = generatedImagePrompt || "A creative image representing the content";
           const imageBase64 = await generateImageVariation(generatedImageBase64, promptToUse, selectedStyle);
           setGeneratedImageBase64(imageBase64);
@@ -151,14 +148,12 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
     };
     
     onSavePost(newPost);
-    // Reset critical parts for next post
     setInputText('');
     setGeneratedCaption('');
     setGeneratedImageBase64(null);
     alert('บันทึกแผนงานเรียบร้อย!');
   };
 
-  // Copy to Clipboard
   const handleCopyText = async () => {
     if (!generatedCaption) return;
     try {
@@ -170,9 +165,7 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
     }
   };
 
-  // Download Helpers
   const downloadTextFile = () => {
-    // Export as .doc (HTML compatible) for Word/Pages support
     const contentHtml = `
       <!DOCTYPE html>
       <html>
@@ -244,7 +237,7 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
 
             <div className="grid grid-cols-2 gap-4">
               <div>
-                <label className="block text-sm font-medium text-slate-700 mb-1">Mood & Tone (ข้อความ)</label>
+                <label className="block text-sm font-medium text-slate-700 mb-1">Mood & Tone</label>
                 <select 
                   value={selectedTone}
                   onChange={(e) => setSelectedTone(e.target.value as ContentTone)}
@@ -270,7 +263,7 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
             </div>
 
             <div>
-               <label className="block text-sm font-medium text-slate-700 mb-1">โลโก้แบรนด์ของคุณ (PNG พื้นใสดีที่สุด)</label>
+               <label className="block text-sm font-medium text-slate-700 mb-1">โลโก้แบรนด์ (PNG พื้นใส)</label>
                <div className="flex items-center gap-4 mt-2">
                  <div className="w-16 h-16 bg-slate-100 rounded-lg border border-dashed border-slate-300 flex items-center justify-center overflow-hidden relative group cursor-pointer" onClick={() => logoInputRef.current?.click()}>
                     {userLogo ? (
@@ -351,14 +344,15 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
                                     onClick={downloadTextFile}
                                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                 >
-                                    <Download className="w-3 h-3" /> ดาวน์โหลด .doc
+                                    <Download className="w-3 h-3" /> .doc
                                 </button>
                             </div>
                         </div>
                         <textarea 
                             value={generatedCaption}
                             onChange={(e) => setGeneratedCaption(e.target.value)}
-                            className="w-full h-32 p-3 text-sm rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent"
+                            className="w-full h-40 p-3 text-sm rounded-lg bg-slate-50 border border-slate-200 focus:ring-2 focus:ring-purple-500 focus:border-transparent leading-relaxed"
+                            style={{ whiteSpace: 'pre-wrap' }}
                         />
                     </div>
 
@@ -371,7 +365,7 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
                                     onClick={downloadImageFile}
                                     className="text-xs text-blue-600 hover:text-blue-800 flex items-center gap-1"
                                 >
-                                    <Download className="w-3 h-3" /> ดาวน์โหลดรูปภาพ (.png)
+                                    <Download className="w-3 h-3" /> .png
                                 </button>
                             )}
                         </div>
@@ -394,9 +388,8 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
                                         onClick={handleRegenerateImage}
                                         disabled={!generatedImagePrompt}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition-colors disabled:opacity-50"
-                                        title="ใช้ Prompt เดิมสร้างภาพใหม่"
                                     >
-                                        <RefreshCw className="w-3.5 h-3.5" /> สร้างภาพใหม่
+                                        <RefreshCw className="w-3.5 h-3.5" /> สร้างใหม่
                                     </button>
 
                                     <input 
@@ -409,17 +402,15 @@ const ContentCreator: React.FC<ContentCreatorProps> = ({ onSavePost, userLogo, s
                                     <button 
                                         onClick={() => customImageInputRef.current?.click()}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-slate-100 hover:bg-slate-200 text-slate-700 text-xs rounded-md transition-colors"
-                                        title="ใช้ภาพของคุณเองแทนภาพจาก AI"
                                     >
-                                        <Camera className="w-3.5 h-3.5" /> อัพโหลดรูปเอง
+                                        <Camera className="w-3.5 h-3.5" /> อัพโหลดเอง
                                     </button>
 
                                     <button 
                                         onClick={handleRestyleImage}
                                         className="flex items-center gap-1.5 px-3 py-1.5 bg-purple-100 hover:bg-purple-200 text-purple-700 text-xs rounded-md transition-colors ml-auto"
-                                        title="เจนภาพใหม่โดยอิงจากภาพปัจจุบันแต่เปลี่ยนสไตล์"
                                     >
-                                        <Sparkles className="w-3.5 h-3.5" /> AI รีสไตล์
+                                        <Sparkles className="w-3.5 h-3.5" /> รีสไตล์
                                     </button>
                                 </div>
                             </>

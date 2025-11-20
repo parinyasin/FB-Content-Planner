@@ -18,16 +18,16 @@ const fonts = [
 
 const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave }) => {
   const canvasRef = useRef<HTMLCanvasElement>(null);
-  const saveTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const saveTimeoutRef = useRef<any>(null); // Use any to avoid NodeJS/Window type mismatch
   
   // Preloaded Images State
   const [loadedBaseImg, setLoadedBaseImg] = useState<HTMLImageElement | null>(null);
   const [loadedLogoImg, setLoadedLogoImg] = useState<HTMLImageElement | null>(null);
 
   // Logo State
-  const [logoSize, setLogoSize] = useState<number>(20); // Percentage of width
-  const [logoX, setLogoX] = useState<number>(85); // Percentage X (0-100)
-  const [logoY, setLogoY] = useState<number>(85); // Percentage Y (0-100)
+  const [logoSize, setLogoSize] = useState<number>(20);
+  const [logoX, setLogoX] = useState<number>(85);
+  const [logoY, setLogoY] = useState<number>(85);
 
   // Image Filter State
   const [brightness, setBrightness] = useState<number>(100);
@@ -42,7 +42,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   const [textColor, setTextColor] = useState('#ffffff');
   const [textStrokeColor, setTextStrokeColor] = useState('#000000');
   const [isTextStrokeEnabled, setIsTextStrokeEnabled] = useState(true);
-  const [textSize, setTextSize] = useState(10); // Percentage
+  const [textSize, setTextSize] = useState(10); 
   const [textXPosition, setTextXPosition] = useState(50);
   const [textYPosition, setTextYPosition] = useState(50);
 
@@ -53,25 +53,33 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   const [subtitleCustomFont, setSubtitleCustomFont] = useState('');
   const [subtitleColor, setSubtitleColor] = useState('#ffffff');
   const [subtitleStrokeColor, setSubtitleStrokeColor] = useState('#000000');
-  const [isSubtitleStrokeEnabled, setIsSubtitleStrokeEnabled] = useState(false); // Default off for cleaner look
-  const [subtitleSize, setSubtitleSize] = useState(5); // Percentage
+  const [isSubtitleStrokeEnabled, setIsSubtitleStrokeEnabled] = useState(false);
+  const [subtitleSize, setSubtitleSize] = useState(5);
   const [subtitleX, setSubtitleX] = useState(50);
   const [subtitleY, setSubtitleY] = useState(65);
 
-  // Layering
   const [layerPriority, setLayerPriority] = useState<'logo' | 'text'>('logo');
 
   // 1. Preload Base Image
   useEffect(() => {
     if (!baseImage) return;
+    let isMounted = true;
     const img = new Image();
-    // Avoid crossOrigin for data: URIs to prevent tainting or loading issues
+    
+    // Crucial: Only set crossOrigin if it's a remote URL, NOT data: URI
     if (!baseImage.startsWith('data:')) {
       img.crossOrigin = "anonymous";
     }
+
+    img.onload = () => {
+        if (isMounted) setLoadedBaseImg(img);
+    };
+    img.onerror = () => {
+        console.error("Failed to load base image");
+    };
     img.src = baseImage;
-    img.onload = () => setLoadedBaseImg(img);
-    img.onerror = () => console.error("Failed to load base image");
+    
+    return () => { isMounted = false; };
   }, [baseImage]);
 
   // 2. Preload Logo Image
@@ -80,13 +88,22 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
       setLoadedLogoImg(null);
       return;
     }
+    let isMounted = true;
     const img = new Image();
+    
     if (!logoImage.startsWith('data:')) {
       img.crossOrigin = "anonymous";
     }
+
+    img.onload = () => {
+        if (isMounted) setLoadedLogoImg(img);
+    };
+    img.onerror = () => {
+        console.error("Failed to load logo image");
+    };
     img.src = logoImage;
-    img.onload = () => setLoadedLogoImg(img);
-    img.onerror = () => console.error("Failed to load logo image");
+    
+    return () => { isMounted = false; };
   }, [logoImage]);
 
   // 3. Draw Canvas Logic
@@ -97,14 +114,10 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
     const ctx = canvas.getContext('2d');
     if (!ctx) return;
 
-    // Set Dimensions
     canvas.width = loadedBaseImg.width;
     canvas.height = loadedBaseImg.height;
-
-    // Clear canvas
     ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-    // --- Helper Functions ---
     const drawBase = () => {
         ctx.save(); 
         ctx.filter = `brightness(${brightness}%) contrast(${contrast}%) saturate(${saturation}%)`;
@@ -125,10 +138,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
     ) => {
         if (!text) return;
         ctx.save();
-        
-        // Use custom font if provided, else fallback to selected web font
         const finalFont = customFontName.trim() ? customFontName.trim() : fontName;
-        
         const fontSizePx = (canvas.width * sizePercent) / 100;
         ctx.font = `bold ${fontSizePx}px "${finalFont}", sans-serif`;
         ctx.textAlign = 'center';
@@ -136,29 +146,24 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         
         const x = (canvas.width * xPercent) / 100;
         const y = (canvas.height * yPercent) / 100;
-        
         const lines = text.split('\n');
         const lineHeight = fontSizePx * 1.3;
         const startY = y - ((lines.length - 1) * lineHeight) / 2;
 
         lines.forEach((line, index) => {
             const lineY = startY + (index * lineHeight);
-            
-            // Shadow for readability (always subtle)
-            ctx.shadowColor = "rgba(0,0,0,0.3)";
-            ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 1;
-            ctx.shadowOffsetY = 1;
+            // Subtle Shadow
+            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            ctx.shadowBlur = 6;
+            ctx.shadowOffsetX = 2;
+            ctx.shadowOffsetY = 2;
 
-            // Stroke
             if (hasStroke && strokeColor !== 'transparent') {
                 ctx.lineWidth = fontSizePx / 8;
                 ctx.strokeStyle = strokeColor;
                 ctx.lineJoin = 'round';
                 ctx.strokeText(line, x, lineY);
             }
-
-            // Fill
             ctx.fillStyle = color;
             ctx.fillText(line, x, lineY);
         });
@@ -181,12 +186,10 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         ctx.beginPath();
         ctx.arc(centerX, centerY, radius, 0, Math.PI * 2);
         ctx.closePath();
-        // Clip to circle
         ctx.clip();
 
         const imgRatio = loadedLogoImg.width / loadedLogoImg.height;
         let renderW, renderH;
-
         if (imgRatio >= 1) {
             renderH = diameter;
             renderW = diameter * imgRatio;
@@ -195,12 +198,10 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
             renderH = diameter / imgRatio;
         }
         
-        // Center image in the clipped circle
         ctx.drawImage(loadedLogoImg, centerX - (renderW / 2), centerY - (renderH / 2), renderW, renderH);
         ctx.restore(); 
     };
 
-    // --- Execution Order ---
     drawBase();
 
     if (layerPriority === 'text') {
@@ -213,24 +214,20 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         drawLogo();
     }
 
-    // Export with debounce to prevent lag
-    if (saveTimeoutRef.current) {
-        clearTimeout(saveTimeoutRef.current);
-    }
+    if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
 
     saveTimeoutRef.current = setTimeout(() => {
         try {
+            // High quality export
             const dataUrl = canvas.toDataURL('image/png');
             onSave(dataUrl);
         } catch (e) {
             console.error("Canvas export failed", e);
         }
-    }, 400); // 400ms debounce
+    }, 400);
 
     return () => {
-        if (saveTimeoutRef.current) {
-            clearTimeout(saveTimeoutRef.current);
-        }
+        if (saveTimeoutRef.current) clearTimeout(saveTimeoutRef.current);
     };
 
   }, [
@@ -291,7 +288,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         </div>
                         <div className="flex gap-2">
                              <div className="flex-1">
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">สีตัวอักษร</label>
+                                <label className="text-xs font-medium text-slate-500 mb-1 block">สี</label>
                                 <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="h-8 w-full rounded cursor-pointer border border-slate-200" />
                              </div>
                              <div className="flex-1">
@@ -300,7 +297,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                                     onClick={() => setIsTextStrokeEnabled(!isTextStrokeEnabled)}
                                 >
                                     {isTextStrokeEnabled ? <CheckSquare className="w-3 h-3 text-blue-600" /> : <Square className="w-3 h-3" />}
-                                    สีขอบ
+                                    ขอบ
                                 </label>
                                 <input 
                                     type="color" 
@@ -314,7 +311,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                     </div>
 
                     <div className="border-t border-slate-100 pt-3">
-                        <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1"><Move className="w-3 h-3" /> ตำแหน่งหัวข้อ</label>
+                        <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1"><Move className="w-3 h-3" /> ตำแหน่ง</label>
                         <div className="grid grid-cols-2 gap-4">
                             <input type="range" min="0" max="100" value={textXPosition} onChange={(e) => setTextXPosition(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
                             <input type="range" min="0" max="100" value={textYPosition} onChange={(e) => setTextYPosition(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-blue-600" />
@@ -324,11 +321,11 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
             )}
         </div>
 
-        {/* SECONDARY TEXT (SUBTITLE) CONTROL */}
+        {/* SECONDARY TEXT */}
         <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm space-y-4 border-l-4 border-l-indigo-500">
             <div className="flex items-center justify-between">
                 <h3 className="font-bold text-slate-700 flex items-center gap-2">
-                    <AlignLeft className="w-5 h-5 text-indigo-600" /> ข้อความรอง / รายละเอียด
+                    <AlignLeft className="w-5 h-5 text-indigo-600" /> ข้อความรอง
                 </h3>
                 <label className="relative inline-flex items-center cursor-pointer">
                     <input type="checkbox" checked={isSubtitleEnabled} onChange={(e) => setIsSubtitleEnabled(e.target.checked)} className="sr-only peer" />
@@ -341,11 +338,10 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                     <textarea 
                         value={subtitleContent}
                         onChange={(e) => setSubtitleContent(e.target.value)}
-                        placeholder="รายละเอียด 1-3 บรรทัด..."
+                        placeholder="รายละเอียด..."
                         rows={3}
                         className="w-full p-2 text-sm border border-slate-300 rounded-md"
                     />
-                    
                     <div className="space-y-2">
                          <label className="text-xs font-medium text-slate-500 block">ฟอนต์</label>
                         <select 
@@ -364,7 +360,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         </div>
                         <div className="flex gap-2">
                              <div className="flex-1">
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">สีตัวอักษร</label>
+                                <label className="text-xs font-medium text-slate-500 mb-1 block">สี</label>
                                 <input type="color" value={subtitleColor} onChange={(e) => setSubtitleColor(e.target.value)} className="h-8 w-full rounded cursor-pointer border border-slate-200" />
                              </div>
                              <div className="flex-1">
@@ -373,7 +369,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                                     onClick={() => setIsSubtitleStrokeEnabled(!isSubtitleStrokeEnabled)}
                                 >
                                     {isSubtitleStrokeEnabled ? <CheckSquare className="w-3 h-3 text-indigo-600" /> : <Square className="w-3 h-3" />}
-                                    สีขอบ
+                                    ขอบ
                                 </label>
                                 <input 
                                     type="color" 
@@ -387,7 +383,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                     </div>
 
                     <div className="border-t border-slate-100 pt-3">
-                        <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1"><Move className="w-3 h-3" /> ตำแหน่งข้อความรอง</label>
+                        <label className="text-xs font-bold text-slate-600 mb-2 block flex items-center gap-1"><Move className="w-3 h-3" /> ตำแหน่ง</label>
                         <div className="grid grid-cols-2 gap-4">
                             <input type="range" min="0" max="100" value={subtitleX} onChange={(e) => setSubtitleX(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
                             <input type="range" min="0" max="100" value={subtitleY} onChange={(e) => setSubtitleY(Number(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-indigo-600" />
@@ -397,12 +393,12 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
             )}
         </div>
 
-        {/* Logo & Layers & Filters */}
+        {/* Logo & Layers */}
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             {loadedLogoImg && (
                 <div className="p-4 bg-white rounded-lg border border-slate-200 shadow-sm space-y-4 border-l-4 border-l-green-500">
                     <h3 className="font-semibold text-slate-700 flex items-center gap-2">
-                        <RefreshCw className="w-4 h-4 text-green-600" /> โลโก้ (วงกลม)
+                        <RefreshCw className="w-4 h-4 text-green-600" /> โลโก้
                     </h3>
                     <div>
                         <input type="range" min="5" max="50" value={logoSize} onChange={(e) => setLogoSize(parseInt(e.target.value))} className="w-full h-2 bg-slate-200 rounded-lg appearance-none cursor-pointer accent-green-600" />
@@ -420,14 +416,14 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                  {loadedLogoImg && (
                     <div className="pb-3 border-b border-slate-100">
                         <h3 className="font-semibold text-slate-700 flex items-center gap-2 mb-2">
-                            <Layers className="w-4 h-4" /> ลำดับชั้น (Layer)
+                            <Layers className="w-4 h-4" /> ลำดับชั้น
                         </h3>
                         <div className="flex rounded-md shadow-sm" role="group">
                             <button onClick={() => setLayerPriority('logo')} className={`flex-1 px-3 py-2 text-xs font-medium rounded-l-lg border ${layerPriority === 'logo' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700'}`}>
-                                โลโก้บนสุด
+                                โลโก้บน
                             </button>
                             <button onClick={() => setLayerPriority('text')} className={`flex-1 px-3 py-2 text-xs font-medium rounded-r-lg border ${layerPriority === 'text' ? 'bg-blue-600 text-white' : 'bg-white text-slate-700'}`}>
-                                ตัวหนังสือบนสุด
+                                ข้อความบน
                             </button>
                         </div>
                     </div>
