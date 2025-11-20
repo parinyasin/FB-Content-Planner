@@ -1,6 +1,6 @@
 
 import React, { useState } from 'react';
-import { Calendar, CheckCircle2, Clock, Download, Trash2, FileText, Image as ImageIcon, Copy, Check } from 'lucide-react';
+import { Calendar, Clock, Trash2, FileText, Image as ImageIcon, Copy, Check, Download, Share2 } from 'lucide-react';
 import { PostData } from '../types';
 
 interface ContentPlannerProps {
@@ -9,38 +9,27 @@ interface ContentPlannerProps {
 }
 
 const ContentPlanner: React.FC<ContentPlannerProps> = ({ posts, onDeletePost }) => {
-  // State to track which post was recently copied
   const [copiedId, setCopiedId] = useState<string | null>(null);
 
-  // Sort posts by date
   const sortedPosts = [...posts].sort((a, b) => 
-    new Date(a.scheduledDate).getTime() - new Date(b.scheduledDate).getTime()
+    new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
   );
 
   const downloadText = (post: PostData) => {
-    // Export as .doc (HTML compatible)
     const contentHtml = `
       <!DOCTYPE html>
       <html>
-      <head>
-        <meta charset="utf-8">
-        <title>Content Caption</title>
-        <style>
-          body { font-family: sans-serif; line-height: 1.6; font-size: 14pt; }
-          p { margin-bottom: 1em; }
-        </style>
-      </head>
-      <body>
+      <head><meta charset="utf-8"><title>Caption</title></head>
+      <body style="font-family: sans-serif; line-height: 1.6;">
         ${post.generatedCaption.replace(/\n/g, '<br>')}
       </body>
       </html>
     `;
-
     const blob = new Blob([contentHtml], { type: 'application/msword' });
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `caption-${post.scheduledDate}-${post.id.slice(0,4)}.doc`;
+    a.download = `caption-${post.id.slice(0,6)}.doc`;
     a.click();
     URL.revokeObjectURL(url);
   };
@@ -49,7 +38,7 @@ const ContentPlanner: React.FC<ContentPlannerProps> = ({ posts, onDeletePost }) 
     if (!post.finalImageBase64) return;
     const a = document.createElement('a');
     a.href = post.finalImageBase64;
-    a.download = `image-${post.scheduledDate}-${post.id.slice(0,4)}.png`;
+    a.download = `post-image-${post.id.slice(0,6)}.png`;
     a.click();
   };
 
@@ -65,96 +54,87 @@ const ContentPlanner: React.FC<ContentPlannerProps> = ({ posts, onDeletePost }) 
 
   if (posts.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 text-slate-400 bg-white rounded-xl border border-slate-200 shadow-sm">
-        <Calendar className="w-16 h-16 mb-4 opacity-30" />
-        <p className="text-lg">ยังไม่มีแผนงานคอนเทนต์</p>
-        <p className="text-sm">เริ่มสร้างโพสต์แรกของคุณได้ที่เมนู "สร้างใหม่"</p>
+      <div className="flex flex-col items-center justify-center py-32 text-slate-400 bg-white rounded-3xl border-2 border-dashed border-slate-200">
+        <div className="bg-slate-50 p-6 rounded-full mb-4">
+             <Calendar className="w-12 h-12 text-slate-300" />
+        </div>
+        <p className="text-lg font-thai-header font-semibold text-slate-600">ยังไม่มีแผนงาน</p>
+        <p className="text-sm">เริ่มสร้างโพสต์แรกของคุณที่เมนู "สร้างคอนเทนต์"</p>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      <h2 className="text-xl font-bold text-slate-800 flex items-center gap-2">
-        <Calendar className="text-orange-500" /> แผนงานคอนเทนต์ของคุณ
-      </h2>
-      
-      <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
-        {sortedPosts.map((post) => (
-          <div key={post.id} className="bg-white rounded-xl overflow-hidden shadow-sm border border-slate-200 flex flex-col hover:shadow-md transition-shadow">
-            {/* Image Header */}
-            <div className="relative h-48 bg-slate-100 overflow-hidden group">
-                {post.finalImageBase64 ? (
-                    <img src={post.finalImageBase64} alt="Post Visual" className="w-full h-full object-cover" />
-                ) : (
-                    <div className="w-full h-full flex items-center justify-center text-slate-400">No Image</div>
-                )}
-                <div className="absolute inset-0 bg-black/50 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
-                    <button 
-                        onClick={() => downloadImage(post)}
-                        className="bg-white text-slate-900 text-xs px-3 py-2 rounded-full hover:bg-slate-100 transition-colors flex items-center gap-1"
-                        title="ดาวน์โหลดรูปภาพ"
-                    >
-                        <ImageIcon className="w-3 h-3" /> ดาวน์โหลดรูป
-                    </button>
-                </div>
-                <div className="absolute top-2 right-2">
-                    <span className={`px-2 py-1 rounded-full text-xs font-semibold ${
-                        post.status === 'published' ? 'bg-green-100 text-green-700' : 'bg-amber-100 text-amber-700'
-                    }`}>
-                        {post.status === 'published' ? 'เผยแพร่แล้ว' : 'รอโพสต์'}
-                    </span>
-                </div>
-            </div>
-
-            {/* Content Body */}
-            <div className="p-4 flex-1 flex flex-col">
-                <div className="flex items-center gap-2 text-slate-500 text-xs mb-3">
-                    <Clock className="w-3 h-3" />
-                    <span>{new Date(post.scheduledDate).toLocaleDateString('th-TH', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
-                </div>
-                
-                <p className="text-slate-700 text-sm line-clamp-3 mb-4 flex-1 whitespace-pre-line">
-                    {post.generatedCaption}
-                </p>
-
-                {/* Footer Actions */}
-                <div className="pt-3 border-t border-slate-100 flex items-center justify-between">
-                    <button 
-                        onClick={() => onDeletePost(post.id)}
-                        className="text-red-500 hover:bg-red-50 p-2 rounded-full transition-colors"
-                        title="ลบ"
-                    >
-                        <Trash2 className="w-4 h-4" />
-                    </button>
-                    <div className="flex gap-2">
-                         <button 
-                            onClick={() => handleCopy(post.generatedCaption, post.id)}
-                            className={`p-2 rounded-full transition-colors ${copiedId === post.id ? 'bg-green-100 text-green-600' : 'text-slate-500 hover:text-green-600 hover:bg-green-50'}`}
-                            title="คัดลอกข้อความ"
-                        >
-                            {copiedId === post.id ? <Check className="w-4 h-4" /> : <Copy className="w-4 h-4" />}
-                         </button>
-                         <button 
-                            onClick={() => downloadText(post)}
-                            className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
-                            title="ดาวน์โหลดข้อความ (.doc)"
-                        >
-                            <FileText className="w-4 h-4" />
-                         </button>
-                         <button 
-                            onClick={() => downloadImage(post)}
-                            className="text-slate-500 hover:text-blue-600 hover:bg-blue-50 p-2 rounded-full transition-colors"
-                            title="ดาวน์โหลดรูปภาพ (.png)"
-                        >
-                            <ImageIcon className="w-4 h-4" />
-                         </button>
-                    </div>
-                </div>
-            </div>
+    <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6 pb-20">
+      {sortedPosts.map((post) => (
+        <div key={post.id} className="bg-white rounded-2xl overflow-hidden shadow-sm hover:shadow-xl transition-shadow border border-slate-100 flex flex-col group">
+          
+          {/* Image Header */}
+          <div className="relative aspect-video bg-slate-100 overflow-hidden">
+              {post.finalImageBase64 ? (
+                  <img src={post.finalImageBase64} alt="Post Visual" className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
+              ) : (
+                  <div className="w-full h-full flex items-center justify-center text-slate-400 text-xs">No Image</div>
+              )}
+              
+              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity flex flex-col justify-end p-4">
+                   <button 
+                      onClick={() => downloadImage(post)}
+                      className="w-full py-2 bg-white text-slate-900 text-xs font-bold rounded-lg hover:bg-slate-100 transition-colors flex items-center justify-center gap-2"
+                  >
+                      <Download className="w-3.5 h-3.5" /> ดาวน์โหลดรูป
+                  </button>
+              </div>
           </div>
-        ))}
-      </div>
+
+          {/* Content Body */}
+          <div className="p-5 flex-1 flex flex-col">
+              <div className="flex items-center justify-between mb-3">
+                 <div className="flex items-center gap-1.5 text-slate-400 text-[10px] font-medium uppercase tracking-wider">
+                    <Clock className="w-3 h-3" />
+                    <span>{new Date(post.timestamp).toLocaleDateString('th-TH', { day: 'numeric', month: 'short', hour: '2-digit', minute:'2-digit' })}</span>
+                 </div>
+                 <span className="px-2 py-0.5 bg-green-50 text-green-600 text-[10px] font-bold rounded-full border border-green-100">
+                    READY
+                 </span>
+              </div>
+              
+              <div className="bg-slate-50 p-3 rounded-lg border border-slate-100 mb-4 flex-1">
+                 <p className="text-slate-600 text-sm line-clamp-4 whitespace-pre-line leading-relaxed font-thai-header">
+                    {post.generatedCaption}
+                 </p>
+              </div>
+
+              {/* Actions */}
+              <div className="flex items-center justify-between pt-2 border-t border-slate-50">
+                  <button 
+                      onClick={() => onDeletePost(post.id)}
+                      className="text-slate-400 hover:text-red-500 p-2 rounded-lg hover:bg-red-50 transition-colors"
+                      title="ลบ"
+                  >
+                      <Trash2 className="w-4 h-4" />
+                  </button>
+                  
+                  <div className="flex gap-2">
+                       <button 
+                          onClick={() => handleCopy(post.generatedCaption, post.id)}
+                          className={`px-3 py-1.5 rounded-lg text-xs font-medium flex items-center gap-1.5 transition-colors ${copiedId === post.id ? 'bg-green-100 text-green-700' : 'bg-slate-100 text-slate-600 hover:bg-slate-200'}`}
+                      >
+                          {copiedId === post.id ? <Check className="w-3 h-3" /> : <Copy className="w-3 h-3" />}
+                          {copiedId === post.id ? 'คัดลอกแล้ว' : 'คัดลอก'}
+                       </button>
+                       <button 
+                          onClick={() => downloadText(post)}
+                          className="p-2 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors"
+                          title="โหลดข้อความ"
+                      >
+                          <FileText className="w-4 h-4" />
+                      </button>
+                  </div>
+              </div>
+          </div>
+        </div>
+      ))}
     </div>
   );
 };
