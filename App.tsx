@@ -32,9 +32,13 @@ const App: React.FC = () => {
   useEffect(() => {
     try {
         localStorage.setItem('fb_planner_posts', JSON.stringify(posts));
-    } catch (e) {
-        console.error("Failed to save posts (Storage limit likely reached)", e);
-        // Optional: Alert user
+    } catch (e: any) {
+        // Handle QuotaExceededError silently or log it
+        if (e.name === 'QuotaExceededError') {
+             console.warn("Storage limit reached. Oldest posts might need to be deleted.");
+        } else {
+             console.error("Failed to save posts", e);
+        }
     }
   }, [posts]);
 
@@ -43,9 +47,10 @@ const App: React.FC = () => {
     if (userLogo) {
       try {
         localStorage.setItem('fb_planner_logo', userLogo);
-      } catch (e) {
-        console.error("Failed to save logo (Storage limit likely reached)", e);
-        // If logo is too big, it won't save, but app won't crash
+      } catch (e: any) {
+        if (e.name === 'QuotaExceededError') {
+            console.warn("Storage limit reached. Logo not saved.");
+        }
       }
     }
   }, [userLogo]);

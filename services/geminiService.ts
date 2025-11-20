@@ -78,17 +78,17 @@ export const generateFBCaption = async (
 function getStyleModifiers(style: ImageStyle): string {
     switch (style) {
         case ImageStyle.CLEAN_LINE:
-            return "style of continuous line art, colorful pastel background, full frame illustration, edge to edge, no white background, sophisticated, fine art, flat design, full coverage, filling the entire canvas";
+            return "style of sophisticated continuous line art, pastel color palette, full frame illustration, edge-to-edge, completely filling the canvas, no white borders, no white background, high quality fine art";
         case ImageStyle.ABSTRACT_MINIMAL:
-            return "abstract minimal art, soft organic shapes, rich colors, modern art composition, non-representational, bauhaus influence, clean aesthetic, high quality design, full canvas coverage, no borders, colorful background, filling the whole image";
+            return "high-end abstract minimal art, organic fluid shapes, rich textured colors, modern art composition, bauhaus influence, clean aesthetic, full canvas coverage, edge-to-edge, no borders, no white background";
         case ImageStyle.GEOMETRIC_FLAT:
-            return "flat vector art, geometric shapes, vibrant but balanced colors, modern graphic design, adobe illustrator style, clean edges, no gradients, symbolism, full frame colorful background, edge to edge, no white borders";
+            return "premium flat vector art, geometric patterns, vibrant balanced colors, modern graphic design, adobe illustrator style, clean edges, full frame colorful background, edge-to-edge, no white borders";
         case ImageStyle.SOFT_WATERCOLOR:
-            return "soft watercolor painting, wet on wet technique, full page painting, detailed colored background, pastel palette, dreamy, artistic, loose brushstrokes, minimal details, no white space, edge to edge painting";
+            return "masterpiece watercolor painting, wet on wet technique, full page painting, rich detailed colored background, dreamy atmosphere, artistic brushstrokes, edge-to-edge painting, no white paper showing, no borders";
         case ImageStyle.POP_ART:
-            return "pop art style, vibrant high-saturation colors, flat vector illustration, simplified details, bold graphic composition, vibrant full background, no gradients, clean lines, modern pop art, full frame, no borders";
+            return "modern pop art style, vibrant high-saturation colors, bold graphic composition, flat vector illustration, no gradients, clean lines, full frame vivid background, edge-to-edge, no borders, no white background";
         default:
-            return "minimalist, clean, high quality, artistic, full frame detailed background, edge to edge, no borders";
+            return "minimalist, high quality, artistic, full frame detailed background, edge-to-edge, no white background, no borders";
     }
 }
 
@@ -99,8 +99,8 @@ export const generateIllustration = async (prompt: string, style: ImageStyle): P
   try {
     const styleModifiers = getStyleModifiers(style);
 
-    // Combine to force the aesthetic and STRICTLY ban white backgrounds in negative prompt
-    const enhancedPrompt = `A conceptual art piece representing: ${prompt}. ${styleModifiers}. Professional artistic composition, masterpiece, 4k resolution, full frame, edge to edge image, filling the entire canvas. Negative prompt: realistic photo, 3d render, plastic, blurry, messy, text, watermark, human faces, white background, empty background, border, frame, isolated on white, white space, split view, grid, cropped, margin, padding.`;
+    // Enhanced prompt to strictly enforce full frame and remove white backgrounds
+    const enhancedPrompt = `A conceptual masterpiece art piece representing: ${prompt}. ${styleModifiers}. Professional artistic composition, 4k resolution, highly detailed, full frame image, edge to edge, filling the entire canvas. Negative prompt: white background, simple background, plain background, borders, frames, white edges, margin, padding, watermark, text, signature, blurry, low quality, distorted, ugly, split view.`;
 
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
@@ -127,7 +127,6 @@ export const generateIllustration = async (prompt: string, style: ImageStyle): P
 
 /**
  * Generates an image variation based on an input image (Image-to-Image)
- * Uses gemini-2.5-flash-image as recommended for general image editing/generation
  */
 export const generateImageVariation = async (
     base64InputImage: string, 
@@ -147,11 +146,11 @@ export const generateImageVariation = async (
                 {
                   inlineData: {
                     data: cleanBase64,
-                    mimeType: 'image/png', // Assuming PNG or widely compatible format
+                    mimeType: 'image/png', 
                   },
                 },
                 {
-                  text: `Redraw this image entirely. Keep the main subject and composition but change the artistic style to: ${styleModifiers}. The concept is: ${prompt}. High quality, artistic, clear visualization, full frame, no white background, no borders, edge to edge, filling the canvas.`,
+                  text: `Redraw this image entirely. Keep the main subject and composition but change the artistic style to: ${styleModifiers}. The concept is: ${prompt}. High quality, artistic, clear visualization, full frame, edge to edge, filling the canvas, no white background, no borders.`,
                 },
               ],
             },

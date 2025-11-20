@@ -1,6 +1,6 @@
 
 import React, { useEffect, useRef, useState } from 'react';
-import { Sliders, Type, Move, Layers, RefreshCw, Monitor, AlignLeft } from 'lucide-react';
+import { Sliders, Type, Move, Layers, RefreshCw, Monitor, AlignLeft, CheckSquare, Square } from 'lucide-react';
 
 interface LogoOverlayProps {
   baseImage: string;
@@ -38,7 +38,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   const [isTextEnabled, setIsTextEnabled] = useState(false);
   const [textContent, setTextContent] = useState('ใส่หัวข้อหลักที่นี่');
   const [selectedFont, setSelectedFont] = useState('Mitr');
-  const [customFont, setCustomFont] = useState(''); // For System Fonts
+  const [customFont, setCustomFont] = useState(''); 
   const [textColor, setTextColor] = useState('#ffffff');
   const [textStrokeColor, setTextStrokeColor] = useState('#000000');
   const [isTextStrokeEnabled, setIsTextStrokeEnabled] = useState(true);
@@ -53,7 +53,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
   const [subtitleCustomFont, setSubtitleCustomFont] = useState('');
   const [subtitleColor, setSubtitleColor] = useState('#ffffff');
   const [subtitleStrokeColor, setSubtitleStrokeColor] = useState('#000000');
-  const [isSubtitleStrokeEnabled, setIsSubtitleStrokeEnabled] = useState(true);
+  const [isSubtitleStrokeEnabled, setIsSubtitleStrokeEnabled] = useState(false); // Default off for cleaner look
   const [subtitleSize, setSubtitleSize] = useState(5); // Percentage
   const [subtitleX, setSubtitleX] = useState(50);
   const [subtitleY, setSubtitleY] = useState(65);
@@ -136,11 +136,11 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         lines.forEach((line, index) => {
             const lineY = startY + (index * lineHeight);
             
-            // Shadow/Glow
-            ctx.shadowColor = "rgba(0,0,0,0.5)";
+            // Shadow for readability (always subtle)
+            ctx.shadowColor = "rgba(0,0,0,0.3)";
             ctx.shadowBlur = 4;
-            ctx.shadowOffsetX = 2;
-            ctx.shadowOffsetY = 2;
+            ctx.shadowOffsetX = 1;
+            ctx.shadowOffsetY = 1;
 
             // Stroke
             if (hasStroke && strokeColor !== 'transparent') {
@@ -203,15 +203,19 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
         drawLogo();
     }
 
-    // Export with debounce
+    // Export with debounce to prevent lag
     if (saveTimeoutRef.current) {
         clearTimeout(saveTimeoutRef.current);
     }
 
     saveTimeoutRef.current = setTimeout(() => {
-        const dataUrl = canvas.toDataURL('image/png');
-        onSave(dataUrl);
-    }, 300); // Debounce for 300ms
+        try {
+            const dataUrl = canvas.toDataURL('image/png');
+            onSave(dataUrl);
+        } catch (e) {
+            console.error("Canvas export failed", e);
+        }
+    }, 400); // 400ms debounce
 
     return () => {
         if (saveTimeoutRef.current) {
@@ -268,16 +272,6 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         >
                             {fonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
                         </select>
-                        <div className="flex items-center gap-2 mt-1">
-                            <Monitor className="w-3 h-3 text-slate-400" />
-                            <input 
-                                type="text"
-                                value={customFont}
-                                onChange={(e) => setCustomFont(e.target.value)}
-                                placeholder="หรือพิมพ์ชื่อฟอนต์ในเครื่อง (เช่น Angsana New)"
-                                className="flex-1 p-1.5 text-xs border border-slate-200 rounded bg-slate-50 placeholder:text-slate-400"
-                            />
-                        </div>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -287,29 +281,23 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         </div>
                         <div className="flex gap-2">
                              <div className="flex-1">
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">สี</label>
+                                <label className="text-xs font-medium text-slate-500 mb-1 block">สีตัวอักษร</label>
                                 <input type="color" value={textColor} onChange={(e) => setTextColor(e.target.value)} className="h-8 w-full rounded cursor-pointer border border-slate-200" />
                              </div>
                              <div className="flex-1">
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-xs font-medium text-slate-500">ขอบ</label>
-                                    <div className="flex items-center gap-1">
-                                        <input 
-                                            type="checkbox" 
-                                            id="textStrokeToggle"
-                                            checked={isTextStrokeEnabled} 
-                                            onChange={(e) => setIsTextStrokeEnabled(e.target.checked)}
-                                            className="w-3 h-3 accent-blue-600 cursor-pointer"
-                                        />
-                                        <label htmlFor="textStrokeToggle" className="text-[10px] text-slate-500 cursor-pointer select-none">ใส่</label>
-                                    </div>
-                                </div>
+                                <label 
+                                    className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1 cursor-pointer hover:text-blue-600"
+                                    onClick={() => setIsTextStrokeEnabled(!isTextStrokeEnabled)}
+                                >
+                                    {isTextStrokeEnabled ? <CheckSquare className="w-3 h-3 text-blue-600" /> : <Square className="w-3 h-3" />}
+                                    สีขอบ
+                                </label>
                                 <input 
                                     type="color" 
                                     value={textStrokeColor} 
                                     disabled={!isTextStrokeEnabled}
                                     onChange={(e) => setTextStrokeColor(e.target.value)} 
-                                    className={`h-8 w-full rounded cursor-pointer border border-slate-200 ${!isTextStrokeEnabled ? 'opacity-30 cursor-not-allowed' : ''}`} 
+                                    className={`h-8 w-full rounded cursor-pointer border border-slate-200 ${!isTextStrokeEnabled ? 'opacity-30 cursor-not-allowed bg-slate-100' : ''}`} 
                                 />
                              </div>
                         </div>
@@ -350,22 +338,13 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                     
                     <div className="space-y-2">
                          <label className="text-xs font-medium text-slate-500 block">ฟอนต์</label>
-                         <div className="flex items-center gap-2">
-                            <select 
-                                value={subtitleFont} 
-                                onChange={(e) => { setSubtitleFont(e.target.value); setSubtitleCustomFont(''); }}
-                                className="w-1/2 p-2 text-sm border border-slate-300 rounded-md"
-                            >
-                                {fonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
-                            </select>
-                            <input 
-                                type="text"
-                                value={subtitleCustomFont}
-                                onChange={(e) => setSubtitleCustomFont(e.target.value)}
-                                placeholder="ชื่อฟอนต์ในเครื่อง"
-                                className="w-1/2 p-2 text-xs border border-slate-200 rounded bg-slate-50"
-                            />
-                        </div>
+                        <select 
+                            value={subtitleFont} 
+                            onChange={(e) => { setSubtitleFont(e.target.value); setSubtitleCustomFont(''); }}
+                            className="w-full p-2 text-sm border border-slate-300 rounded-md"
+                        >
+                            {fonts.map(f => <option key={f.name} value={f.name}>{f.label}</option>)}
+                        </select>
                     </div>
 
                     <div className="grid grid-cols-2 gap-3">
@@ -375,29 +354,23 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, onSave 
                         </div>
                         <div className="flex gap-2">
                              <div className="flex-1">
-                                <label className="text-xs font-medium text-slate-500 mb-1 block">สี</label>
+                                <label className="text-xs font-medium text-slate-500 mb-1 block">สีตัวอักษร</label>
                                 <input type="color" value={subtitleColor} onChange={(e) => setSubtitleColor(e.target.value)} className="h-8 w-full rounded cursor-pointer border border-slate-200" />
                              </div>
                              <div className="flex-1">
-                                <div className="flex justify-between items-center mb-1">
-                                    <label className="text-xs font-medium text-slate-500">ขอบ</label>
-                                    <div className="flex items-center gap-1">
-                                        <input 
-                                            type="checkbox" 
-                                            id="subStrokeToggle"
-                                            checked={isSubtitleStrokeEnabled} 
-                                            onChange={(e) => setIsSubtitleStrokeEnabled(e.target.checked)}
-                                            className="w-3 h-3 accent-indigo-600 cursor-pointer"
-                                        />
-                                        <label htmlFor="subStrokeToggle" className="text-[10px] text-slate-500 cursor-pointer select-none">ใส่</label>
-                                    </div>
-                                </div>
+                                <label 
+                                    className="text-xs font-medium text-slate-500 mb-1 flex items-center gap-1 cursor-pointer hover:text-indigo-600"
+                                    onClick={() => setIsSubtitleStrokeEnabled(!isSubtitleStrokeEnabled)}
+                                >
+                                    {isSubtitleStrokeEnabled ? <CheckSquare className="w-3 h-3 text-indigo-600" /> : <Square className="w-3 h-3" />}
+                                    สีขอบ
+                                </label>
                                 <input 
                                     type="color" 
                                     value={subtitleStrokeColor} 
                                     disabled={!isSubtitleStrokeEnabled}
                                     onChange={(e) => setSubtitleStrokeColor(e.target.value)} 
-                                    className={`h-8 w-full rounded cursor-pointer border border-slate-200 ${!isSubtitleStrokeEnabled ? 'opacity-30 cursor-not-allowed' : ''}`} 
+                                    className={`h-8 w-full rounded cursor-pointer border border-slate-200 ${!isSubtitleStrokeEnabled ? 'opacity-30 cursor-not-allowed bg-slate-100' : ''}`} 
                                 />
                              </div>
                         </div>
