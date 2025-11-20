@@ -1,23 +1,10 @@
-import { GoogleGenAI, Type, Schema } from "@google/genai";
-// import { ContentTone, ImageStyle } from "../types"; // อย่าลืม import types ของคุณ
 
-// ถ้า types.ts ยังไม่ได้ export ให้ uncomment บรรทัดล่างนี้เพื่อเทส
-export enum ContentTone {
-  FUN = "สนุกสนาน เป็นกันเอง",
-  SERIOUS = "จริงจัง น่าเชื่อถือ",
-  MINIMAL = "มินิมอล เรียบง่าย",
-  SALES = "เน้นขายของ โปรโมชั่น"
-}
-export enum ImageStyle {
-  CLEAN_LINE = "ลายเส้นคลีนๆ",
-  ABSTRACT_MINIMAL = "Abstract Minimal",
-  GEOMETRIC_FLAT = "Geometric Flat",
-  SOFT_WATERCOLOR = "สีน้ำละมุน",
-  POP_ART = "Pop Art"
-}
+import { GoogleGenAI, Type, Schema, Modality } from "@google/genai";
+import { ContentTone, ImageStyle } from "../types";
 
 // Initialize Gemini API Client
-const ai = new GoogleGenAI({ apiKey: import.meta.env.VITE_GEMINI_API_KEY }); // ใช้ import.meta.env สำหรับ Vite
+// NOTE: process.env.API_KEY is guaranteed to be available in this environment.
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 /**
  * Summarizes content and writes a Facebook Caption
@@ -34,12 +21,12 @@ export const generateFBCaption = async (
     2. สรุปใจความสำคัญและเขียนโพสต์ Facebook (Caption) ที่น่าสนใจ ดึงดูดสายตา
     3. ใช้น้ำเสียงแบบ: ${tone}
     4. จัดรูปแบบให้อ่านง่าย มีการเว้นวรรคให้น่าอ่าน
-    5. **ห้ามใช้ Emoji หรือไอคอนกราฟิกใดๆ ในเนื้อหาโดยเด็ดขาด** ขอเป็นตัวอักษรล้วน
-    6. **ห้ามใช้เครื่องหมาย : (colon) ในเนื้อหาโดยเด็ดขาด**
-    7. **ห้ามใช้เครื่องหมาย ** (ดอกจัน) หรือ Markdown syntax**
-    8. คิด Hashtag ที่เกี่ยวข้อง 5-10 อัน (SEO Friendly)
-    9. **ต้องใส่ Hashtag บังคับนี้เสมอ**: #การะเกต์พยากรณ์
-    10. สร้าง Prompt ภาษาอังกฤษสำหรับเจนภาพประกอบ เน้นแนวคิด Abstract/Symbolic ไม่เน้นคน
+    5. **ห้ามใช้ Emoji หรือไอคอนกราฟิกใดๆ ในเนื้อหาโดยเด็ดขาด (เช่น ❌, ✅, 🔥 ฯลฯ ห้ามมี)** ขอเป็นตัวอักษรล้วน
+    6. **ห้ามใช้เครื่องหมาย : (colon/ทวิภาค) ในเนื้อหาโดยเด็ดขาด** หากต้องการขยายความให้ใช้การเว้นวรรคหรือขึ้นบรรทัดใหม่แทน
+    7. **ห้ามใช้เครื่องหมาย ** (ดอกจัน) เพื่อทำตัวหนา หรือ Markdown syntax ใดๆ ให้ใช้ตัวอักษรธรรมดาเท่านั้น**
+    8. คิด Hashtag ที่เกี่ยวข้อง 5-10 อัน โดยเน้นคำที่คนค้นหาเยอะ (SEO Friendly) ช่วยให้ติดอันดับการค้นหาได้ง่าย
+    9. **ต้องใส่ Hashtag บังคับนี้เสมอในทุกโพสต์**: #การะเกต์พยากรณ์
+    10. สร้าง Prompt ภาษาอังกฤษสำหรับเจนภาพประกอบ เน้นแนวคิดที่เป็น Abstract หรือ Symbolic แทนการใช้รูปคนจริง เพื่อความสวยงามทางศิลปะ
 
     ข้อความต้นฉบับ:
     "${text}"
@@ -50,20 +37,19 @@ export const generateFBCaption = async (
     properties: {
       caption: {
         type: Type.STRING,
-        description: "เนื้อหา Caption ภาษาไทย",
+        description: "เนื้อหา Caption สำหรับโพสต์ลง Facebook โดยห้ามมี Emoji, ห้ามมีเครื่องหมาย : (colon) และห้ามมีเครื่องหมาย ** หรือ Markdown",
       },
       imagePrompt: {
         type: Type.STRING,
-        description: "Prompt ภาษาอังกฤษสำหรับสร้างภาพ",
+        description: "Prompt ภาษาอังกฤษสำหรับสร้างภาพประกอบ เน้นวัตถุหรือสัญลักษณ์ (Subject) ที่สื่อความหมาย ไม่เน้นคน",
       },
     },
     required: ["caption", "imagePrompt"],
   };
 
   try {
-    // ใช้ gemini-1.5-flash หรือ gemini-2.0-flash-exp สำหรับงาน Text
     const response = await ai.models.generateContent({
-      model: "gemini-2.0-flash-exp", 
+      model: "gemini-2.5-flash",
       contents: prompt,
       config: {
         responseMimeType: "application/json",
@@ -72,15 +58,12 @@ export const generateFBCaption = async (
       },
     });
 
-    let jsonText = response.text;
+    const jsonText = response.text;
     if (!jsonText) throw new Error("No response from AI");
-
-    // Clean Markdown formatting if present (ป้องกัน Error JSON parse)
-    jsonText = jsonText.replace(/^```json\n/, "").replace(/\n```$/, "");
     
     const result = JSON.parse(jsonText);
 
-    // Strict Post-Processing
+    // Strict Post-Processing: Remove colons if they exist
     if (result.caption) {
         result.caption = result.caption.replace(/:/g, " ");
     }
@@ -95,17 +78,18 @@ export const generateFBCaption = async (
 function getStyleModifiers(style: ImageStyle): string {
     switch (style) {
         case ImageStyle.CLEAN_LINE:
-            return "style of minimal continuous line art, single line drawing, full frame illustration, solid pastel color background, edge to edge, black ink, vector illustration, no shading, flat design";
+            // Enforce colored/full background even for line art
+            return "style of minimal continuous line art, single line drawing, full frame illustration, solid pastel color background, edge to edge, black ink, vector illustration, elegant, sophisticated, fine art, no shading, flat design";
         case ImageStyle.ABSTRACT_MINIMAL:
-            return "abstract minimal art, soft organic shapes, pastel colors, modern art composition, non-representational, bauhaus influence, clean aesthetic, full canvas coverage";
+            return "abstract minimal art, soft organic shapes, pastel colors, modern art composition, non-representational, bauhaus influence, clean aesthetic, high quality design, no realistic details, full canvas coverage, colorful background";
         case ImageStyle.GEOMETRIC_FLAT:
-            return "flat vector art, geometric shapes, vibrant balanced colors, modern graphic design, adobe illustrator style, clean edges, no gradients, full frame colorful background";
+            return "flat vector art, geometric shapes, vibrant but balanced colors, modern graphic design, adobe illustrator style, clean edges, no gradients, symbolism, full frame colorful background, edge to edge";
         case ImageStyle.SOFT_WATERCOLOR:
-            return "soft watercolor painting, wet on wet technique, full page painting, detailed colored background, pastel palette, dreamy, artistic, no white space";
+            return "soft watercolor painting, wet on wet technique, full page painting, detailed colored background, pastel palette, dreamy, artistic, loose brushstrokes, minimal details, no white space";
         case ImageStyle.POP_ART:
-            return "pop art style, vibrant high-saturation colors, flat vector illustration, simplified details, bold graphic composition, vibrant full background";
+            return "pop art style, vibrant high-saturation colors, flat vector illustration, simplified details, bold graphic composition, vibrant full background, no gradients, clean lines, modern pop art, reduced complexity, botanical vector style";
         default:
-            return "minimalist, clean, high quality, artistic, full frame detailed background";
+            return "minimalist, clean, high quality, artistic, full frame detailed background, edge to edge";
     }
 }
 
@@ -115,11 +99,12 @@ function getStyleModifiers(style: ImageStyle): string {
 export const generateIllustration = async (prompt: string, style: ImageStyle): Promise<string> => {
   try {
     const styleModifiers = getStyleModifiers(style);
-    const enhancedPrompt = `A conceptual art piece representing: ${prompt}. ${styleModifiers}. Professional artistic composition, masterpiece, 4k resolution, full frame. Negative prompt: realistic photo, 3d render, plastic, blurry, text, watermark, human faces, white background, empty background, border.`;
 
-    // ใช้ imagen-3.0-generate-001 (ล่าสุดที่มีให้ใช้ทั่วไป)
+    // Combine to force the aesthetic and STRICTLY ban white backgrounds in negative prompt
+    const enhancedPrompt = `A conceptual art piece representing: ${prompt}. ${styleModifiers}. Professional artistic composition, masterpiece, 4k resolution, full frame, edge to edge. Negative prompt: realistic photo, 3d render, plastic, blurry, messy, text, watermark, human faces, white background, empty background, border, frame, isolated on white, white space.`;
+
     const response = await ai.models.generateImages({
-      model: 'imagen-3.0-generate-001', 
+      model: 'imagen-4.0-generate-001',
       prompt: enhancedPrompt,
       config: {
         numberOfImages: 1,
@@ -142,8 +127,8 @@ export const generateIllustration = async (prompt: string, style: ImageStyle): P
 };
 
 /**
- * Generates an image variation (Image-to-Image)
- * Note: Currently requires Gemini 2.0 Flash Experimental for Image Output
+ * Generates an image variation based on an input image (Image-to-Image)
+ * Uses gemini-2.5-flash-image as recommended for general image editing/generation
  */
 export const generateImageVariation = async (
     base64InputImage: string, 
@@ -152,39 +137,35 @@ export const generateImageVariation = async (
 ): Promise<string> => {
     try {
         const styleModifiers = getStyleModifiers(style);
+        
+        // Clean data prefix if present
         const cleanBase64 = base64InputImage.replace(/^data:image\/(png|jpeg|jpg|webp);base64,/, "");
 
-        // ต้องใช้ gemini-2.0-flash-exp เท่านั้นที่รองรับการ output เป็นรูปภาพ
         const response = await ai.models.generateContent({
-            model: 'gemini-2.0-flash-exp', 
-            contents: [
-              {
-                role: 'user',
-                parts: [
-                  {
-                    inlineData: {
-                      data: cleanBase64,
-                      mimeType: 'image/png',
-                    },
+            model: 'gemini-2.5-flash-image',
+            contents: {
+              parts: [
+                {
+                  inlineData: {
+                    data: cleanBase64,
+                    mimeType: 'image/png', // Assuming PNG or widely compatible format
                   },
-                  {
-                    text: `Redraw this image entirely. Keep the main composition but change style to: ${styleModifiers}. Concept: ${prompt}. High quality, artistic, full frame, no white background.`,
-                  },
-                ],
-              }
-            ],
+                },
+                {
+                  text: `Redraw this image entirely. Keep the main subject and composition but change the artistic style to: ${styleModifiers}. The concept is: ${prompt}. High quality, artistic, clear visualization, full frame, no white background.`,
+                },
+              ],
+            },
             config: {
-                // สำคัญ: ต้องระบุว่าขอ Output เป็น Image
-                responseModalities: ["IMAGE"], 
+                responseModalities: [Modality.IMAGE],
             },
         });
 
-        // การดึงรูปภาพจาก Gemini 2.0 response
-        const candidates = response.candidates;
         let newImageBase64 = "";
-
-        if (candidates?.[0]?.content?.parts) {
-            for (const part of candidates[0].content.parts) {
+        const candidates = response.candidates;
+        if (candidates && candidates.length > 0) {
+            const parts = candidates[0].content.parts;
+            for (const part of parts) {
                 if (part.inlineData && part.inlineData.data) {
                     newImageBase64 = part.inlineData.data;
                     break;
