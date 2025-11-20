@@ -1,16 +1,15 @@
-
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize the Google GenAI client
-// Direct access to process.env.API_KEY is required for the build system to replace it correctly.
+// Direct access to process.env.API_KEY is replaced by Vite at build time
 const apiKey = process.env.API_KEY;
-const ai = new GoogleGenAI({ apiKey });
+const ai = new GoogleGenAI({ apiKey: apiKey || '' }); // Pass empty string safely if undefined to prevent immediate crash, checked later
 
 // 1. Generate Caption AND Image Prompt from Text
 export const generateFBCaption = async (text: string, tone: string) => {
   if (!apiKey) {
-    console.error("API Key is missing. Please ensure process.env.API_KEY is set.");
-    return { caption: "ไม่พบ API Key กรุณาตรวจสอบการตั้งค่าระบบ", imagePrompt: null };
+    console.error("API Key is missing.");
+    return { caption: "ไม่พบ API Key กรุณาตรวจสอบการตั้งค่าระบบ (.env)", imagePrompt: null };
   }
 
   try {
@@ -31,6 +30,7 @@ export const generateFBCaption = async (text: string, tone: string) => {
       - The prompt will be used by an AI image generator.
       - Describe a scene, objects, or abstract concept that matches the content's mood.
       - Keep it visual and descriptive.
+      - IMPORTANT: Focus on high aesthetic quality.
 
       Output JSON format:
       {
@@ -71,7 +71,6 @@ export const generateFBCaption = async (text: string, tone: string) => {
       }
     } catch (e) {
       console.error("JSON Parse Error:", e);
-      // Fallback: try to use raw text if it looks like a caption
       result = { caption: responseText, imagePrompt: null };
     }
 
@@ -94,13 +93,13 @@ export const generateIllustration = async (prompt: string, style: string) => {
   if (!apiKey) return null;
   
   try {
-    // Combine user prompt with style
-    const fullPrompt = `${prompt}. Art Style: ${style}. High quality, detailed, aesthetic, visually appealing.`;
+    // Enhanced prompt for better aesthetics
+    const aestheticBoost = "Masterpiece, 8k resolution, highly detailed, cinematic lighting, professional photography, trending on artstation, sharp focus";
+    const fullPrompt = `${prompt}. Art Style: ${style}. ${aestheticBoost}. Visually appealing composition.`;
 
     const response = await ai.models.generateContent({
       model: 'gemini-2.5-flash-image',
       contents: { parts: [{ text: fullPrompt }] },
-      // Note: responseMimeType is not supported for image generation models
     });
 
     // Iterate through parts to find the image
