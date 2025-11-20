@@ -2,11 +2,17 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize the Google GenAI client
+// Ensure we safely access process.env for the API key
 const apiKey = (typeof process !== "undefined" && process.env) ? process.env.API_KEY : "";
 const ai = new GoogleGenAI({ apiKey });
 
 // 1. Generate Caption ONLY from Text
 export const generateCaptionFromText = async (text: string, tone: string) => {
+  if (!apiKey) {
+    console.error("API Key is missing. Please ensure process.env.API_KEY is set.");
+    return { caption: "ไม่พบ API Key กรุณาตรวจสอบการตั้งค่าระบบ" };
+  }
+
   try {
     const modelId = 'gemini-2.5-flash';
     
@@ -27,8 +33,8 @@ export const generateCaptionFromText = async (text: string, tone: string) => {
       
       HASHTAG RULES (CRITICAL):
       1. Generate 5-10 highly relevant, trending SEO hashtags related to the content topic to boost reach.
-      2. MANDATORY: The VERY LAST hashtag MUST be #การะเกต์พยากรณ์ (Do not forget this).
-      3. Separate hashtags from the main text with a double line break.
+      2. MANDATORY: The VERY LAST hashtag MUST be #การะเกต์พยากรณ์ (Do not forget this specific tag).
+      3. Place hashtags at the very end, separated from the text by a double line break.
     `;
 
     const response = await ai.models.generateContent({
@@ -48,11 +54,22 @@ export const generateCaptionFromText = async (text: string, tone: string) => {
 
     const responseText = response.text || "{}";
     let result;
+    
     try {
-        result = JSON.parse(responseText);
+      // Clean up potential markdown formatting before parsing
+      const cleanText = responseText.replace(/```json|```/g, "").trim();
+      const jsonStart = cleanText.indexOf('{');
+      const jsonEnd = cleanText.lastIndexOf('}');
+      
+      if (jsonStart !== -1 && jsonEnd !== -1) {
+          result = JSON.parse(cleanText.substring(jsonStart, jsonEnd + 1));
+      } else {
+          result = JSON.parse(cleanText);
+      }
     } catch (e) {
-        const cleanText = responseText.replace(/```json|```/g, "").trim();
-        result = JSON.parse(cleanText);
+      console.error("JSON Parse Error:", e);
+      // Fallback: try to use raw text if it looks like a caption
+      result = { caption: responseText };
     }
 
     return {
@@ -62,7 +79,7 @@ export const generateCaptionFromText = async (text: string, tone: string) => {
   } catch (error: any) {
     console.error("Gemini API Error (Caption):", error);
     return {
-        caption: "ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อ AI",
+        caption: `ขออภัย เกิดข้อผิดพลาดในการเชื่อมต่อ AI (${error.message || "Unknown Error"})`,
     };
   }
 };

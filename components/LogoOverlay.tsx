@@ -10,13 +10,17 @@ interface LogoOverlayProps {
   onSave: (finalImage: string) => void;
 }
 
+// Expanded font list with common Thai system fonts
 const fonts = [
-  { name: 'Mitr', label: 'Mitr (หัวข้อทันสมัย)' },
-  { name: 'Anuphan', label: 'Anuphan (อ่านง่าย)' },
-  { name: 'Sarabun', label: 'Sarabun (ทางการ)' },
-  { name: 'Pattaya', label: 'Pattaya (ลายมือ)' },
-  { name: 'Chonburi', label: 'Chonburi (วินเทจ)' },
-  { name: 'Custom', label: '💻 ฟอนต์ในเครื่อง (ระบุชื่อเอง)' },
+  { name: 'Mitr', label: 'Mitr (หัวข้อทันสมัย - Google)' },
+  { name: 'Anuphan', label: 'Anuphan (อ่านง่าย - Google)' },
+  { name: 'Sarabun', label: 'Sarabun (ทางการ - Google)' },
+  { name: 'Pattaya', label: 'Pattaya (ลายมือ - Google)' },
+  { name: 'Chonburi', label: 'Chonburi (วินเทจ - Google)' },
+  { name: 'Sukhumvit Set', label: 'Sukhumvit Set (iOS System)' },
+  { name: 'Thonburi', label: 'Thonburi (Mac System)' },
+  { name: 'Leelawadee UI', label: 'Leelawadee UI (Windows System)' },
+  { name: 'Custom', label: '💻 ระบุชื่อฟอนต์เอง...' },
 ];
 
 const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, aspectRatio, onSave }) => {
@@ -185,7 +189,7 @@ const LogoOverlay: React.FC<LogoOverlayProps> = ({ baseImage, logoImage, aspectR
         ctx.save();
         
         const fontSizePx = (canvas.width * sizePct) / 100;
-        // Use custom font name if selected, otherwise use predefined Google Font
+        // Use custom font name if selected, otherwise use predefined font
         const actualFont = (isCustomFont && customName) ? customName : fontName;
         
         ctx.font = `bold ${fontSizePx}px "${actualFont}", sans-serif`;
