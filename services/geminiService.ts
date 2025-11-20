@@ -1,73 +1,99 @@
 
-import { GoogleGenAI, Modality } from "@google/genai";
+import { GoogleGenAI, Modality, Type } from "@google/genai";
 
-// ==========================================
-// ใช้ API Key จาก Environment Variable ตามมาตรฐานความปลอดภัย
-// ==========================================
-const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
-
-// ฟังก์ชันช่วยแกะกล่อง JSON
+// ฟังก์ชันช่วยแกะกล่อง JSON ให้แม่นยำขึ้น (Cleaning logic)
 function cleanJSON(text: string): string {
-  return text.replace(/^```json\s*/, "").replace(/^```\s*/, "").replace(/\s*```$/, "");
+  let cleaned = text.replace(/```json/g, "").replace(/```/g, "");
+  const firstBrace = cleaned.indexOf('{');
+  const lastBrace = cleaned.lastIndexOf('}');
+  if (firstBrace >= 0 && lastBrace > firstBrace) {
+    return cleaned.substring(firstBrace, lastBrace + 1);
+  }
+  return cleaned;
 }
 
 export const generateFBCaption = async (text: string, tone: string) => {
   try {
-    const prompt = `
-      Task: Write a Facebook Caption for this content.
-      Content: "${text}"
-      
-      Tone: ${tone}
-      
-      Format Requirements:
-      1. Headline: Catchy and engaging, suitable for the target audience.
-      2. Body: Well-structured with double line breaks (\n\n) between paragraphs for easy reading on mobile. Keep paragraphs short (2-3 lines).
-      3. Conclusion: Strong call to action or summary.
-      4. Hashtags: Relevant hashtags at the very end.
-      
-      Output format: Return ONLY a JSON object with this structure:
-      { 
-        "caption": "The full caption content with emojis and formatting", 
-        "imagePrompt": "A highly detailed, creative description of an image to accompany this post, describing mood, lighting, and subject" 
-      }
-    `;
+    // Init AI client inside function for safety against load-time env issues
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
     const response = await ai.models.generateContent({
       model: "gemini-2.5-flash",
-      contents: prompt,
+      contents: [
+        {
+          text: `
+            Role: Professional Social Media Content Creator (Thai Language Specialist).
+            Task: Summarize and rewrite the provided content into an engaging Facebook Caption in THAI.
+            
+            Tone: ${tone}
+            
+            Instructions:
+            1. Analyze the input content.
+            2. Write a "caption" in Thai. 
+               - Make it catchy (Hook). 
+               - Summarize the key points.
+               - Use short paragraphs with double line breaks (\n\n) for readability. 
+               - DO NOT use any emojis. Strictly text only.
+               - Include relevant hashtags at the end.
+            3. Write an "imagePrompt" in English for generating a high-quality illustration that matches the content.
+            
+            Input Content:
+            "${text}"
+          `
+        }
+      ],
       config: {
         responseMimeType: "application/json",
+        responseSchema: {
+          type: Type.OBJECT,
+          properties: {
+            caption: { type: Type.STRING, description: "The generated Facebook caption in Thai language." },
+            imagePrompt: { type: Type.STRING, description: "A detailed English prompt for image generation." }
+          }
+        }
       }
     });
 
-    // FIX: ใช้ .text ไม่ใช่ .text()
-    let rawText = response.text || "{}";
+    let rawText = response.text || "";
     
-    rawText = cleanJSON(rawText);
-
+    // พยายาม Parse JSON
     let result;
     try {
-        result = JSON.parse(rawText);
+      result = JSON.parse(rawText);
     } catch (e) {
-        console.error("JSON Parse Error:", e);
-        return { caption: rawText, imagePrompt: "minimalist abstract art, clean lines, pastel colors, high quality" };
+      // ถ้า Parse ตรงๆ ไม่ได้ ให้ลอง clean text ก่อน
+      try {
+         const cleaned = cleanJSON(rawText);
+         result = JSON.parse(cleaned);
+      } catch (e2) {
+         console.error("JSON Parse Error:", e2);
+         // Fallback: ถ้าแกะไม่ได้จริงๆ ให้ส่ง text ดิบกลับไปเลย ดีกว่าไม่แสดงอะไร
+         return { 
+           caption: rawText || "เกิดข้อผิดพลาด: AI ไม่ส่งข้อความตอบกลับ", 
+           imagePrompt: "high quality, aesthetic, professional photo, clean composition" 
+         };
+      }
     }
     
     return {
-        caption: result.caption || "ไม่มีข้อความตอบกลับ",
-        imagePrompt: result.imagePrompt || "minimalist abstract art, clean lines, pastel colors, high quality"
+        caption: result.caption || "ไม่มีข้อความตอบกลับจาก AI",
+        imagePrompt: result.imagePrompt || "high quality, aesthetic, professional photo, clean composition"
     };
 
-  } catch (error) {
+  } catch (error: any) {
     console.error("Gemini Error:", error);
-    return { caption: "เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI กรุณาลองใหม่อีกครั้ง", imagePrompt: "" };
+    let errorMsg = "เกิดข้อผิดพลาดในการเชื่อมต่อกับ AI";
+    if (error.message?.includes("API key")) errorMsg = "ไม่พบ API Key หรือ Key ไม่ถูกต้อง";
+    return { caption: errorMsg, imagePrompt: "" };
   }
 };
 
 // ฟังก์ชันสร้างภาพจริงด้วย Imagen
 export const generateIllustration = async (prompt: string, style: string) => {
   try {
-    const enhancedPrompt = `${prompt}, style: ${style}, high quality, 8k resolution, professional photography, aesthetic lighting, masterpiece, photorealistic`;
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+    
+    const enhancedPrompt = `${prompt}, style: ${style}, high quality, 8k resolution, professional photography, aesthetic lighting, masterpiece, photorealistic, sharp focus`;
     
     const response = await ai.models.generateImages({
       model: 'imagen-4.0-generate-001',
@@ -87,7 +113,7 @@ export const generateIllustration = async (prompt: string, style: string) => {
 
   } catch (error) {
     console.error("Image Gen Error:", error);
-    // Fallback กรณีสร้างรูปไม่ได้
+    // Fallback image from Unsplash
     return "https://images.unsplash.com/photo-1618005182384-a83a8bd57fbe?q=80&w=1000&auto=format&fit=crop";
   }
 };
@@ -95,6 +121,8 @@ export const generateIllustration = async (prompt: string, style: string) => {
 // ฟังก์ชันแก้ภาพ (Re-style)
 export const generateImageVariation = async (imageBase64: string, prompt: string, style: string) => {
   try {
+    const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
+
     // ตัด header data:image/... ออกถ้ามี
     const base64Data = imageBase64.split(',')[1] || imageBase64;
     
@@ -102,8 +130,8 @@ export const generateImageVariation = async (imageBase64: string, prompt: string
         model: 'gemini-2.5-flash-image',
         contents: {
             parts: [
-                { inlineData: { data: base64Data, mimeType: 'image/png' } }, // หรือ jpeg ตาม input
-                { text: `Redraw this image in ${style} style. ${prompt}` }
+                { inlineData: { data: base64Data, mimeType: 'image/png' } }, 
+                { text: `Redraw this image in ${style} style. Maintain the main subject composition but change the artistic style. ${prompt}` }
             ]
         },
         config: {
