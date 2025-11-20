@@ -2,8 +2,8 @@
 import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize the Google GenAI client
-// Ensure we safely access process.env for the API key
-const apiKey = (typeof process !== "undefined" && process.env) ? process.env.API_KEY : "";
+// Direct access to process.env.API_KEY is required for the build system to replace it correctly.
+const apiKey = process.env.API_KEY;
 const ai = new GoogleGenAI({ apiKey });
 
 // 1. Generate Caption AND Image Prompt from Text
