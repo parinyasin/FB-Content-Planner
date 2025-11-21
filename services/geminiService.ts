@@ -2,16 +2,10 @@ import { GoogleGenAI, Type } from "@google/genai";
 
 // Initialize the Google GenAI client
 // Direct access to process.env.API_KEY is replaced by Vite at build time
-const apiKey = process.env.API_KEY;
-const ai = new GoogleGenAI({ apiKey: apiKey || '' }); // Pass empty string safely if undefined to prevent immediate crash, checked later
+const ai = new GoogleGenAI({ apiKey: process.env.API_KEY });
 
 // 1. Generate Caption AND Image Prompt from Text
 export const generateFBCaption = async (text: string, tone: string) => {
-  if (!apiKey) {
-    console.error("API Key is missing.");
-    return { caption: "ไม่พบ API Key กรุณาตรวจสอบการตั้งค่าระบบ (.env)", imagePrompt: null };
-  }
-
   try {
     const modelId = 'gemini-2.5-flash';
     
@@ -90,8 +84,6 @@ export const generateFBCaption = async (text: string, tone: string) => {
 
 // 2. Generate Illustration
 export const generateIllustration = async (prompt: string, style: string) => {
-  if (!apiKey) return null;
-  
   try {
     // Enhanced prompt for better aesthetics
     const aestheticBoost = "Masterpiece, 8k resolution, highly detailed, cinematic lighting, professional photography, trending on artstation, sharp focus";
